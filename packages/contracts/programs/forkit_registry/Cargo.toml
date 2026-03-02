@@ -1,0 +1,19 @@
+[package]
+name = "forkit-registry"
+version = "0.1.0"
+description = "ForkIt registry — profiles and trust scores"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "forkit_registry"
+
+[features]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+cpi = ["no-entrypoint"]
+default = []
+
+[dependencies]
+anchor-lang = { version = "0.30.0", features = ["init-if-needed"] }

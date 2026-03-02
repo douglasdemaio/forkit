@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.next/
+.turbo/
+target/
+.env
+.env.local
+.env.*.local
+*.log
+.DS_Store
+.anchor/
+test-ledger/

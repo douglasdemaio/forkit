@@ -22,7 +22,7 @@
     "multer": "^1.4.5-lts.1",
     "socket.io": "^4.7.0",
     "tweetnacl": "^1.0.3",
-    "bs58": "^5.0.0"
+    "bs58": "^6.0.0"
   },
   "devDependencies": {
     "@types/cors": "^2.8.0",

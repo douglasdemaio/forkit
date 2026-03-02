@@ -1,5 +1,4 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token::{self, Token, TokenAccount, Transfer};
 use crate::state::*;
 use crate::errors::ForkitError;
 
@@ -12,33 +11,26 @@ pub struct TimeoutRefund<'info> {
     )]
     pub order: Account<'info, Order>,
 
-    #[account(
-        mut,
-        seeds = [b"escrow_vault", &order.order_id.to_le_bytes()],
-        bump,
-    )]
-    pub escrow_vault: Account<'info, TokenAccount>,
-
-    /// Customer token account to receive refund
-    #[account(
-        mut,
-        constraint = customer_token_account.owner == order.customer,
-    )]
-    pub customer_token_account: Account<'info, TokenAccount>,
-
     /// Permissionless crank — anyone can call
     pub cranker: Signer<'info>,
-    pub token_program: Program<'info, Token>,
 }
 
+/// Marks an order as Refunded if it has timed out.
+/// Individual contributors then claim refunds via `refund_contributor`.
 pub fn handler(ctx: Context<TimeoutRefund>) -> Result<()> {
-    let order = &ctx.accounts.order;
+    let order = &mut ctx.accounts.order;
     let clock = Clock::get()?;
 
     let timed_out = match order.status {
-        OrderStatus::Created | OrderStatus::Preparing => {
+        // Funding timeout — order never got fully funded
+        OrderStatus::Created => {
+            clock.unix_timestamp > order.created_at + FUNDING_TIMEOUT_SECONDS
+        }
+        // Prep timeout
+        OrderStatus::Funded | OrderStatus::Preparing => {
             clock.unix_timestamp > order.created_at + PREP_TIMEOUT_SECONDS
         }
+        // Pickup timeout
         OrderStatus::ReadyForPickup => {
             clock.unix_timestamp > order.created_at + PREP_TIMEOUT_SECONDS + PICKUP_TIMEOUT_SECONDS
         }
@@ -47,24 +39,6 @@ pub fn handler(ctx: Context<TimeoutRefund>) -> Result<()> {
 
     require!(timed_out, ForkitError::NotTimedOut);
 
-    let escrow_balance = ctx.accounts.escrow_vault.amount;
-    let order_id_bytes = order.order_id.to_le_bytes();
-    let seeds = &[b"escrow_vault" as &[u8], &order_id_bytes, &[ctx.bumps.escrow_vault]];
-
-    token::transfer(
-        CpiContext::new_with_signer(
-            ctx.accounts.token_program.to_account_info(),
-            Transfer {
-                from: ctx.accounts.escrow_vault.to_account_info(),
-                to: ctx.accounts.customer_token_account.to_account_info(),
-                authority: ctx.accounts.escrow_vault.to_account_info(),
-            },
-            &[seeds],
-        ),
-        escrow_balance,
-    )?;
-
-    let order = &mut ctx.accounts.order;
     order.status = OrderStatus::Refunded;
 
     emit!(OrderRefunded {

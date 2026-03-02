@@ -50,23 +50,39 @@ model Customer {
 }
 
 model Order {
-  id              String    @id @default(uuid())
-  onChainOrderId  BigInt    @unique
+  id              String          @id @default(uuid())
+  onChainOrderId  BigInt          @unique
   customerId      String
-  customer        Customer  @relation("CustomerOrders", fields: [customerId], references: [id])
+  customer        Customer        @relation("CustomerOrders", fields: [customerId], references: [id])
   restaurantId    String
-  restaurant      Restaurant @relation("RestaurantOrders", fields: [restaurantId], references: [id])
+  restaurant      Restaurant      @relation("RestaurantOrders", fields: [restaurantId], references: [id])
   driverId        String?
-  driver          Driver?   @relation("DriverOrders", fields: [driverId], references: [id])
-  items           Json      // [{menuItemId, quantity, price}]
+  driver          Driver?         @relation("DriverOrders", fields: [driverId], references: [id])
+  items           Json            // [{menuItemId, quantity, price}]
   tokenMint       String
   foodTotal       Decimal
   deliveryFee     Decimal
   protocolFee     Decimal
   depositAmount   Decimal
+  escrowTarget    Decimal         // total needed in escrow
+  escrowFunded    Decimal         @default(0) // total funded so far
   status          String
   codeAHash       String
   codeBHash       String
-  createdAt       DateTime  @default(now())
+  shareLink       String?         @unique // shareable link for contributions
+  createdAt       DateTime        @default(now())
   settledAt       DateTime?
+  contributions   Contribution[]
+}
+
+model Contribution {
+  id              String   @id @default(uuid())
+  orderId         String
+  order           Order    @relation(fields: [orderId], references: [id])
+  walletAddress   String
+  amount          Decimal
+  txSignature     String   // on-chain tx signature
+  createdAt       DateTime @default(now())
+
+  @@unique([orderId, walletAddress])
 }

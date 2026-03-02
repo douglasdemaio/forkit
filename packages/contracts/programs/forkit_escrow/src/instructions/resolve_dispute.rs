@@ -26,9 +26,6 @@ pub struct ResolveDispute<'info> {
     )]
     pub escrow_vault: Account<'info, TokenAccount>,
 
-    #[account(mut, constraint = customer_token_account.owner == order.customer)]
-    pub customer_token_account: Account<'info, TokenAccount>,
-
     #[account(mut, constraint = restaurant_token_account.owner == order.restaurant)]
     pub restaurant_token_account: Account<'info, TokenAccount>,
 
@@ -40,6 +37,10 @@ pub struct ResolveDispute<'info> {
     pub token_program: Program<'info, Token>,
 }
 
+/// Resolve a dispute. Three outcomes:
+/// - RefundCustomer: set status to Refunded, contributors claim via refund_contributor
+/// - PayRestaurantAndDriver: pay them from escrow, set Refunded for deposit claims
+/// - Split: pay restaurant+driver half, set Refunded for contributor claims on remainder
 pub fn handler(ctx: Context<ResolveDispute>, resolution: DisputeResolution) -> Result<()> {
     let order = &mut ctx.accounts.order;
 
@@ -48,31 +49,16 @@ pub fn handler(ctx: Context<ResolveDispute>, resolution: DisputeResolution) -> R
         ForkitError::InvalidOrderStatus
     );
 
-    let escrow_balance = ctx.accounts.escrow_vault.amount;
     let order_id_bytes = order.order_id.to_le_bytes();
     let seeds = &[b"escrow_vault" as &[u8], &order_id_bytes, &[ctx.bumps.escrow_vault]];
 
     match resolution {
         DisputeResolution::RefundCustomer => {
-            // Full refund to customer
-            token::transfer(
-                CpiContext::new_with_signer(
-                    ctx.accounts.token_program.to_account_info(),
-                    Transfer {
-                        from: ctx.accounts.escrow_vault.to_account_info(),
-                        to: ctx.accounts.customer_token_account.to_account_info(),
-                        authority: ctx.accounts.escrow_vault.to_account_info(),
-                    },
-                    &[seeds],
-                ),
-                escrow_balance,
-            )?;
+            // All funds stay in escrow — contributors claim via refund_contributor
         }
         DisputeResolution::PayRestaurantAndDriver => {
-            // Pay restaurant and driver, return deposit minus penalty
             let restaurant_payout = order.food_amount;
             let driver_payout = order.delivery_amount;
-            let customer_refund = escrow_balance - restaurant_payout - driver_payout;
 
             token::transfer(
                 CpiContext::new_with_signer(
@@ -98,42 +84,14 @@ pub fn handler(ctx: Context<ResolveDispute>, resolution: DisputeResolution) -> R
                 ),
                 driver_payout,
             )?;
-            if customer_refund > 0 {
-                token::transfer(
-                    CpiContext::new_with_signer(
-                        ctx.accounts.token_program.to_account_info(),
-                        Transfer {
-                            from: ctx.accounts.escrow_vault.to_account_info(),
-                            to: ctx.accounts.customer_token_account.to_account_info(),
-                            authority: ctx.accounts.escrow_vault.to_account_info(),
-                        },
-                        &[seeds],
-                    ),
-                    customer_refund,
-                )?;
-            }
+            // Remaining (deposit) stays for contributors to claim via refund_contributor
         }
         DisputeResolution::Split => {
-            // 50/50 split between customer and restaurant+driver
+            let escrow_balance = ctx.accounts.escrow_vault.amount;
             let half = escrow_balance / 2;
-            let other_half = escrow_balance - half;
-
-            token::transfer(
-                CpiContext::new_with_signer(
-                    ctx.accounts.token_program.to_account_info(),
-                    Transfer {
-                        from: ctx.accounts.escrow_vault.to_account_info(),
-                        to: ctx.accounts.customer_token_account.to_account_info(),
-                        authority: ctx.accounts.escrow_vault.to_account_info(),
-                    },
-                    &[seeds],
-                ),
-                half,
-            )?;
-            // Split remainder between restaurant and driver proportionally
             let total = order.food_amount + order.delivery_amount;
-            let restaurant_share = other_half * order.food_amount / total;
-            let driver_share = other_half - restaurant_share;
+            let restaurant_share = half * order.food_amount / total;
+            let driver_share = half - restaurant_share;
 
             token::transfer(
                 CpiContext::new_with_signer(
@@ -159,6 +117,7 @@ pub fn handler(ctx: Context<ResolveDispute>, resolution: DisputeResolution) -> R
                 ),
                 driver_share,
             )?;
+            // Other half stays for contributors to claim via refund_contributor
         }
     }
 

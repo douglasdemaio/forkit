@@ -31,15 +31,28 @@ pub mod forkit_escrow {
         instructions::add_accepted_mint::handler(ctx)
     }
 
+    /// Create an order. The creator can optionally contribute an initial amount.
+    /// If initial_contribution covers the full escrow_target, the order moves
+    /// directly to Funded status. Otherwise, others can chip in via contribute_to_order.
     pub fn create_order(
         ctx: Context<CreateOrder>,
         order_id: u64,
         food_amount: u64,
         delivery_amount: u64,
+        initial_contribution: u64,
         code_a_hash: [u8; 32],
         code_b_hash: [u8; 32],
     ) -> Result<()> {
-        instructions::create_order::handler(ctx, order_id, food_amount, delivery_amount, code_a_hash, code_b_hash)
+        instructions::create_order::handler(
+            ctx, order_id, food_amount, delivery_amount,
+            initial_contribution, code_a_hash, code_b_hash,
+        )
+    }
+
+    /// Anyone can contribute funds to an open order's escrow.
+    /// When total contributions reach the escrow_target, order moves to Funded.
+    pub fn contribute_to_order(ctx: Context<ContributeToOrder>, amount: u64) -> Result<()> {
+        instructions::contribute_to_order::handler(ctx, amount)
     }
 
     pub fn accept_order(ctx: Context<AcceptOrder>) -> Result<()> {
@@ -60,6 +73,17 @@ pub mod forkit_escrow {
 
     pub fn confirm_delivery(ctx: Context<ConfirmDelivery>, code_b: String) -> Result<()> {
         instructions::confirm_delivery::handler(ctx, code_b)
+    }
+
+    /// After settlement, each contributor claims their proportional deposit share.
+    pub fn claim_deposit(ctx: Context<ClaimDeposit>) -> Result<()> {
+        instructions::claim_deposit::handler(ctx)
+    }
+
+    /// After cancel or timeout, refund a specific contributor's full amount.
+    /// Permissionless — anyone can crank this for any contributor.
+    pub fn refund_contributor(ctx: Context<RefundContributor>) -> Result<()> {
+        instructions::refund_contributor::handler(ctx)
     }
 
     pub fn timeout_refund(ctx: Context<TimeoutRefund>) -> Result<()> {

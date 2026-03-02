@@ -15,14 +15,23 @@ pub struct CreateOrder<'info> {
     )]
     pub order: Account<'info, Order>,
 
+    /// The creator's contribution record (may be 0 if they don't fund yet)
+    #[account(
+        init,
+        payer = customer,
+        space = Contribution::SPACE,
+        seeds = [Contribution::SEED, &order_id.to_le_bytes(), customer.key().as_ref()],
+        bump,
+    )]
+    pub contribution: Account<'info, Contribution>,
+
     #[account(
         seeds = [ProtocolConfig::SEED],
         bump = protocol_config.bump,
     )]
     pub protocol_config: Account<'info, ProtocolConfig>,
 
-    /// The restaurant wallet that will receive food payment
-    /// CHECK: Validated by the caller; restaurant identity is stored on the order
+    /// CHECK: Validated by the caller; restaurant identity stored on the order
     pub restaurant: UncheckedAccount<'info>,
 
     pub token_mint: Account<'info, Mint>,
@@ -57,13 +66,13 @@ pub fn handler(
     order_id: u64,
     food_amount: u64,
     delivery_amount: u64,
+    initial_contribution: u64,
     code_a_hash: [u8; 32],
     code_b_hash: [u8; 32],
 ) -> Result<()> {
     let config = &ctx.accounts.protocol_config;
     let mint_key = ctx.accounts.token_mint.key();
 
-    // Validate mint is accepted
     require!(config.is_mint_accepted(&mint_key), ForkitError::UnsupportedMint);
 
     // Calculate amounts
@@ -79,23 +88,10 @@ pub fn handler(
         .checked_div(10000)
         .ok_or(ForkitError::ArithmeticOverflow)?;
 
-    // Total to transfer into escrow: food + delivery + deposit
-    let escrow_total = total
+    // Total needed in escrow: food + delivery + deposit
+    let escrow_target = total
         .checked_add(deposit_amount)
         .ok_or(ForkitError::ArithmeticOverflow)?;
-
-    // Transfer funds to escrow vault
-    token::transfer(
-        CpiContext::new(
-            ctx.accounts.token_program.to_account_info(),
-            Transfer {
-                from: ctx.accounts.customer_token_account.to_account_info(),
-                to: ctx.accounts.escrow_vault.to_account_info(),
-                authority: ctx.accounts.customer.to_account_info(),
-            },
-        ),
-        escrow_total,
-    )?;
 
     let clock = Clock::get()?;
 
@@ -110,6 +106,9 @@ pub fn handler(
     order.delivery_amount = delivery_amount;
     order.deposit_amount = deposit_amount;
     order.protocol_fee = protocol_fee;
+    order.escrow_target = escrow_target;
+    order.escrow_funded = 0;
+    order.contributor_count = 0;
     order.code_a_hash = code_a_hash;
     order.code_b_hash = code_b_hash;
     order.status = OrderStatus::Created;
@@ -119,6 +118,54 @@ pub fn handler(
     order.delivery_confirmed_at = 0;
     order.bump = ctx.bumps.order;
 
+    // Initialize contribution record for the creator
+    let contribution = &mut ctx.accounts.contribution;
+    contribution.order_id = order_id;
+    contribution.contributor = ctx.accounts.customer.key();
+    contribution.amount = 0;
+    contribution.bump = ctx.bumps.contribution;
+
+    // If initial contribution > 0, fund immediately
+    if initial_contribution > 0 {
+        // Cap at escrow target
+        let actual_contribution = initial_contribution.min(escrow_target);
+
+        token::transfer(
+            CpiContext::new(
+                ctx.accounts.token_program.to_account_info(),
+                Transfer {
+                    from: ctx.accounts.customer_token_account.to_account_info(),
+                    to: ctx.accounts.escrow_vault.to_account_info(),
+                    authority: ctx.accounts.customer.to_account_info(),
+                },
+            ),
+            actual_contribution,
+        )?;
+
+        contribution.amount = actual_contribution;
+        order.escrow_funded = actual_contribution;
+        order.contributor_count = 1;
+
+        // Check if fully funded in one go
+        if order.is_fully_funded() {
+            order.status = OrderStatus::Funded;
+            emit!(OrderFunded {
+                order_id,
+                total_funded: order.escrow_funded,
+                contributor_count: order.contributor_count,
+            });
+        }
+
+        emit!(ContributionMade {
+            order_id,
+            contributor: ctx.accounts.customer.key(),
+            amount: actual_contribution,
+            total_funded: order.escrow_funded,
+            escrow_target,
+            fully_funded: order.is_fully_funded(),
+        });
+    }
+
     emit!(OrderCreated {
         order_id,
         customer: order.customer,
@@ -127,6 +174,7 @@ pub fn handler(
         food_amount,
         delivery_amount,
         deposit_amount,
+        escrow_target,
         protocol_fee,
     });
 

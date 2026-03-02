@@ -16,8 +16,9 @@ pub struct AcceptOrder<'info> {
 pub fn handler(ctx: Context<AcceptOrder>) -> Result<()> {
     let order = &mut ctx.accounts.order;
 
+    // Order must be fully funded before a driver can accept
     require!(
-        order.status == OrderStatus::Created,
+        order.status == OrderStatus::Funded,
         ForkitError::InvalidOrderStatus
     );
 

@@ -6,6 +6,7 @@ import authRouter from './api/auth';
 import restaurantsRouter from './api/restaurants';
 import driversRouter from './api/drivers';
 import customersRouter from './api/customers';
+import contributionsRouter from './api/contributions';
 
 const app = express();
 const server = createServer(app);
@@ -25,6 +26,7 @@ app.use('/api/auth', authRouter);
 app.use('/api/restaurants', restaurantsRouter);
 app.use('/api/drivers', driversRouter);
 app.use('/api/customers', customersRouter);
+app.use('/api/contributions', contributionsRouter);
 
 // WebSocket
 initializeWebSocket(server);

@@ -30,4 +30,16 @@ pub enum ForkitError {
     InvalidFeeBasisPoints,
     #[msg("Invalid rating value (must be 1-5)")]
     InvalidRating,
+    #[msg("Order is already fully funded")]
+    AlreadyFullyFunded,
+    #[msg("Maximum number of contributors reached")]
+    MaxContributorsReached,
+    #[msg("Contribution amount must be greater than zero")]
+    ZeroContribution,
+    #[msg("Funding window has expired")]
+    FundingExpired,
+    #[msg("Order is not fully funded yet")]
+    NotFullyFunded,
+    #[msg("No contribution found for this address")]
+    NoContribution,
 }

@@ -27,14 +27,14 @@ pub struct ConfirmDelivery<'info> {
     )]
     pub protocol_config: Account<'info, ProtocolConfig>,
 
-    /// Restaurant's token account to receive food payment
+    /// Restaurant's token account
     #[account(
         mut,
         constraint = restaurant_token_account.owner == order.restaurant,
     )]
     pub restaurant_token_account: Account<'info, TokenAccount>,
 
-    /// Driver's token account to receive delivery payment
+    /// Driver's token account
     #[account(
         mut,
         constraint = driver_token_account.owner == order.driver,
@@ -48,17 +48,12 @@ pub struct ConfirmDelivery<'info> {
     )]
     pub treasury_token_account: Account<'info, TokenAccount>,
 
-    /// Customer's token account to receive deposit refund
-    #[account(
-        mut,
-        constraint = customer_token_account.owner == customer.key(),
-    )]
-    pub customer_token_account: Account<'info, TokenAccount>,
-
     pub customer: Signer<'info>,
     pub token_program: Program<'info, Token>,
 }
 
+/// Confirms delivery, pays restaurant + driver + treasury.
+/// Deposit remains in escrow — each contributor claims their share via `claim_deposit`.
 pub fn handler(ctx: Context<ConfirmDelivery>, code_b: String) -> Result<()> {
     let order = &mut ctx.accounts.order;
 
@@ -134,20 +129,6 @@ pub fn handler(ctx: Context<ConfirmDelivery>, code_b: String) -> Result<()> {
             &[seeds],
         ),
         order.protocol_fee,
-    )?;
-
-    // Return deposit to customer
-    token::transfer(
-        CpiContext::new_with_signer(
-            ctx.accounts.token_program.to_account_info(),
-            Transfer {
-                from: ctx.accounts.escrow_vault.to_account_info(),
-                to: ctx.accounts.customer_token_account.to_account_info(),
-                authority: ctx.accounts.escrow_vault.to_account_info(),
-            },
-            &[seeds],
-        ),
-        order.deposit_amount,
     )?;
 
     order.status = OrderStatus::Settled;

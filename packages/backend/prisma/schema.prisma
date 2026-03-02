@@ -1,0 +1,72 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Restaurant {
+  id            String     @id @default(uuid())
+  walletAddress String     @unique
+  name          String
+  metadata      Json
+  acceptedMints String[]
+  createdAt     DateTime   @default(now())
+  menuItems     MenuItem[]
+  orders        Order[]    @relation("RestaurantOrders")
+}
+
+model MenuItem {
+  id           String     @id @default(uuid())
+  restaurantId String
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+  name         String
+  description  String
+  price        Decimal
+  imageCid     String     @default("")
+  category     String
+  available    Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
+
+model Driver {
+  id            String   @id @default(uuid())
+  walletAddress String   @unique
+  metadata      Json
+  zones         Json     // DeliveryZone[]
+  createdAt     DateTime @default(now())
+  orders        Order[]  @relation("DriverOrders")
+}
+
+model Customer {
+  id            String   @id @default(uuid())
+  walletAddress String   @unique
+  metadata      Json
+  createdAt     DateTime @default(now())
+  orders        Order[]  @relation("CustomerOrders")
+}
+
+model Order {
+  id              String    @id @default(uuid())
+  onChainOrderId  BigInt    @unique
+  customerId      String
+  customer        Customer  @relation("CustomerOrders", fields: [customerId], references: [id])
+  restaurantId    String
+  restaurant      Restaurant @relation("RestaurantOrders", fields: [restaurantId], references: [id])
+  driverId        String?
+  driver          Driver?   @relation("DriverOrders", fields: [driverId], references: [id])
+  items           Json      // [{menuItemId, quantity, price}]
+  tokenMint       String
+  foodTotal       Decimal
+  deliveryFee     Decimal
+  protocolFee     Decimal
+  depositAmount   Decimal
+  status          String
+  codeAHash       String
+  codeBHash       String
+  createdAt       DateTime  @default(now())
+  settledAt       DateTime?
+}

@@ -80,7 +80,9 @@ pub fn handler(
         .checked_add(delivery_amount)
         .ok_or(ForkitError::ArithmeticOverflow)?;
     let deposit_amount = total
-        .checked_mul(DEPOSIT_MULTIPLIER)
+        .checked_mul(DEPOSIT_BASIS_POINTS)
+        .ok_or(ForkitError::ArithmeticOverflow)?
+        .checked_div(10000)
         .ok_or(ForkitError::ArithmeticOverflow)?;
     let protocol_fee = total
         .checked_mul(config.fee_basis_points as u64)

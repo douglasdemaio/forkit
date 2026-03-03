@@ -8,10 +8,10 @@ use crate::errors::ForkitError;
 ///
 /// deposit_share = (contribution.amount / order.escrow_funded) * order.deposit_amount
 ///
-/// Example: Order total 20 USDC, deposit 40 USDC, escrow_target 60 USDC.
-/// Person A contributed 42 USDC (70%), Person B contributed 18 USDC (30%).
-/// Person A's deposit share = 40 * 42/60 = 28 USDC
-/// Person B's deposit share = 40 * 18/60 = 12 USDC
+/// Example: Order total 100 USDC, deposit 2 USDC (2%), escrow_target 102 USDC.
+/// Person A contributed 71.4 USDC (70%), Person B contributed 30.6 USDC (30%).
+/// Person A's deposit share = 2 * 71.4/102 = 1.4 USDC
+/// Person B's deposit share = 2 * 30.6/102 = 0.6 USDC
 #[derive(Accounts)]
 pub struct ClaimDeposit<'info> {
     #[account(

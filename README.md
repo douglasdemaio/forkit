@@ -6,12 +6,12 @@ ForkIt replaces centralized delivery platforms with an open protocol where resta
 
 ## How It Works
 
-1. **Customer** places an order → funds + deposit locked in escrow
+1. **Customer** places an order → funds + 2% deposit locked in escrow
 2. **Restaurant** accepts and prepares the food, marks it ready
 3. **Driver** picks up (verified with Code A) → delivers (verified with Code B)
 4. **Settlement** — restaurant and driver are paid automatically; deposit returned to customer
 
-Disputes go to admin arbitration. Timeouts trigger automatic refunds. Protocol fee is 0.02%.
+Disputes go to admin arbitration. Timeouts trigger automatic refunds. Protocol fee is 0.02%. Customer deposit is 2% (returned upon delivery confirmation).
 
 ## Architecture
 
@@ -107,7 +107,7 @@ The core program. Manages the full order lifecycle:
 |---|---|---|
 | `initialize_protocol` | Admin | Set treasury, fee rate, accepted token mints |
 | `add_accepted_mint` | Admin | Whitelist an SPL token for payments |
-| `create_order` | Customer | Lock funds + deposit into escrow PDA |
+| `create_order` | Customer | Lock funds + 2% deposit into escrow PDA |
 | `cancel_order` | Customer | Cancel within 60s window, full refund |
 | `mark_ready_for_pickup` | Restaurant | Signal food is ready |
 | `accept_order` | Driver | Claim a delivery |

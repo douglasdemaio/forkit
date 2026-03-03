@@ -1,7 +1,7 @@
 'use client';
 
 import { FC } from 'react';
-import { FEE_BASIS_POINTS, DEPOSIT_MULTIPLIER, KNOWN_MINTS } from '@/lib/constants';
+import { FEE_BASIS_POINTS, DEPOSIT_BASIS_POINTS, KNOWN_MINTS } from '@/lib/constants';
 
 interface PriceBreakdownProps {
   foodTotal: number;
@@ -18,7 +18,7 @@ export const PriceBreakdown: FC<PriceBreakdownProps> = ({
 }) => {
   const total = foodTotal + deliveryFee;
   const protocolFee = Math.ceil((total * FEE_BASIS_POINTS) / 10000);
-  const deposit = total * DEPOSIT_MULTIPLIER;
+  const deposit = Math.ceil((total * DEPOSIT_BASIS_POINTS) / 10000);
   const totalCharged = total + deposit;
 
   const mintInfo = KNOWN_MINTS[tokenMint];
@@ -44,7 +44,7 @@ export const PriceBreakdown: FC<PriceBreakdownProps> = ({
 
       <div className="border-t border-gray-700 pt-3">
         <div className="flex justify-between text-gray-300">
-          <span>Security deposit (2×)</span>
+          <span>Security deposit (2%)</span>
           <span>{fmt(deposit)} {symbol}</span>
         </div>
         <p className="text-xs text-gray-500 mt-1">

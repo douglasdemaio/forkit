@@ -2,7 +2,7 @@ import { PublicKey } from '@solana/web3.js';
 
 export const TREASURY_WALLET = new PublicKey('BiP5PJuUiXPYCFx98RMCGCnRhdUVrkxSke9C6y2ZohQ9');
 export const FEE_BASIS_POINTS = 2; // 0.02%
-export const DEPOSIT_MULTIPLIER = 2;
+export const DEPOSIT_BASIS_POINTS = 200; // 2%
 
 export const SOLANA_RPC_URL = process.env.NEXT_PUBLIC_SOLANA_RPC_URL || 'https://api.devnet.solana.com';
 export const SOLANA_NETWORK = (process.env.NEXT_PUBLIC_SOLANA_NETWORK || 'devnet') as 'devnet' | 'mainnet-beta';

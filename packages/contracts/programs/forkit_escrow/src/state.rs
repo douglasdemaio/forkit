@@ -5,7 +5,7 @@ pub const PREP_TIMEOUT_SECONDS: i64 = 2700; // 45 minutes
 pub const PICKUP_TIMEOUT_SECONDS: i64 = 1800; // 30 minutes
 pub const DELIVERY_TIMEOUT_SECONDS: i64 = 7200; // 2 hours
 pub const FUNDING_TIMEOUT_SECONDS: i64 = 900; // 15 minutes to fully fund
-pub const DEPOSIT_MULTIPLIER: u64 = 2;
+pub const DEPOSIT_BASIS_POINTS: u64 = 200; // 2%
 pub const FEE_BASIS_POINTS: u16 = 2; // 0.02%
 pub const MAX_ACCEPTED_MINTS: usize = 20;
 pub const MAX_CONTRIBUTORS: usize = 10;
@@ -45,7 +45,7 @@ pub struct Order {
     pub token_mint: Pubkey,
     pub food_amount: u64,
     pub delivery_amount: u64,
-    pub deposit_amount: u64,      // total deposit required (food+delivery)*MULTIPLIER
+    pub deposit_amount: u64,      // total deposit required: 2% of (food+delivery)
     pub protocol_fee: u64,
     pub escrow_target: u64,       // total needed in escrow (food+delivery+deposit)
     pub escrow_funded: u64,       // total funded so far

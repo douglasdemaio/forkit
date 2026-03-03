@@ -2,7 +2,7 @@ import { Router, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { authMiddleware, AuthRequest } from '../middleware/wallet-auth';
 import { generateOrderCodes } from '../services/code-generator';
-import { FEE_BASIS_POINTS, DEPOSIT_MULTIPLIER } from '../config/constants';
+import { FEE_BASIS_POINTS, DEPOSIT_BASIS_POINTS } from '../config/constants';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -78,7 +78,7 @@ router.post('/orders', authMiddleware, async (req: AuthRequest, res: Response) =
 
     const total = foodTotal + Number(deliveryFee);
     const protocolFee = Math.ceil((total * FEE_BASIS_POINTS) / 10000);
-    const depositAmount = total * DEPOSIT_MULTIPLIER;
+    const depositAmount = Math.ceil((total * DEPOSIT_BASIS_POINTS) / 10000);
 
     // Generate codes
     const { codeA, codeB, codeAHash, codeBHash } = generateOrderCodes();

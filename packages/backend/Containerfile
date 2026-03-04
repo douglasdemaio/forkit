@@ -1,0 +1,15 @@
+FROM docker.io/library/node:22-slim AS base
+RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+
+# Install deps
+COPY package.json ./
+RUN npm install
+
+# Copy source + generate prisma client
+COPY . .
+RUN npx prisma generate 2>/dev/null || true
+RUN npm run build 2>/dev/null || true
+
+EXPOSE 3001
+CMD ["npm", "run", "dev"]

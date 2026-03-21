@@ -1,0 +1,46 @@
+MIT License with Fork Compensation Clause
+
+Copyright (c) 2026 douglasdemaio
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+FORK COMPENSATION REQUIREMENT
+
+Any fork, derivative work, or project that incorporates a substantial portion
+of this Software and operates a protocol fee mechanism must remit a
+compensation fee to the original project treasury as follows:
+
+  Compensation rate: 0.02% of the protocol fee collected by the fork.
+
+  For example, if the fork charges a protocol fee of 0.02% on each
+  transaction, the compensation due is 0.02% × 0.02% = 0.000004 (0.0004%)
+  of each transaction's value, payable to the treasury address below.
+
+  Treasury address (Solana):
+    BiP5PJuUiXPYCFx98RMCGCnRhdUVrkxSke9C6y2ZohQ9
+
+  Payment must be made in the same SPL token used for the transaction (USDC,
+  EURC, or any other accepted mint) and transferred at the time of each
+  protocol fee settlement, or batched and settled no less frequently than
+  once per calendar month.
+
+  Failure to comply with this clause does not automatically void the MIT
+  license grant, but constitutes a breach of this license and may result in
+  termination of the rights granted herein at the copyright holder's
+  discretion.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.

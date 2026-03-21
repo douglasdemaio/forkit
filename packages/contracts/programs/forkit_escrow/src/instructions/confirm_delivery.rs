@@ -17,7 +17,7 @@ pub struct ConfirmDelivery<'info> {
 
     #[account(
         mut,
-        seeds = [b"escrow_vault", &order.order_id.to_le_bytes()],
+        seeds = [ESCROW_VAULT_SEED, &order.order_id.to_le_bytes()],
         bump,
     )]
     pub escrow_vault: Account<'info, TokenAccount>,

@@ -6,7 +6,7 @@ pub mod errors;
 
 use instructions::*;
 
-declare_id!("ForkEscrow1111111111111111111111111111111");
+declare_id!("FNZXjjq2oceq15jVsnHT8gYJQUZ9NLCXCpYak2pXsqGB");
 
 #[program]
 pub mod forkit_escrow {

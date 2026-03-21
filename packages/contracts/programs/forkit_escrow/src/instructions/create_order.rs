@@ -45,7 +45,7 @@ pub struct CreateOrder<'info> {
         payer = customer,
         token::mint = token_mint,
         token::authority = escrow_vault,
-        seeds = [b"escrow_vault", &order_id.to_le_bytes()],
+        seeds = [ESCROW_VAULT_SEED, &order_id.to_le_bytes()],
         bump,
     )]
     pub escrow_vault: Account<'info, TokenAccount>,
@@ -76,9 +76,9 @@ pub fn handler(
     initial_contribution: u64,
     code_a_hash: [u8; 32],
     code_b_hash: [u8; 32],
-    /// Unix timestamp predicted by the AI routing model (0 = no AI prediction).
+    // estimated_delivery_time: Unix timestamp predicted by the AI routing model (0 = none).
     estimated_delivery_time: i64,
-    /// AI routing confidence 0–100 (0 = no AI routing applied).
+    // ai_confidence: AI routing confidence 0-100 (0 = no AI routing applied).
     ai_confidence: u8,
 ) -> Result<()> {
     let config = &ctx.accounts.protocol_config;

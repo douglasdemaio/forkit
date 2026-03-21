@@ -6,7 +6,7 @@ pub mod state;
 
 use instructions::*;
 
-declare_id!("ForkLoy111111111111111111111111111111111");
+declare_id!("6DaFmi7haz2Ci9sXaHRviz3biwbmTwipvwc9L9cdeugR");
 
 /// ForkIt Loyalty Program
 ///

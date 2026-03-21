@@ -9,6 +9,9 @@ pub const DEPOSIT_BASIS_POINTS: u64 = 200; // 2%
 pub const FEE_BASIS_POINTS: u16 = 2; // 0.02%
 pub const MAX_ACCEPTED_MINTS: usize = 20;
 pub const MAX_CONTRIBUTORS: usize = 10;
+/// Typed as `&[u8]` (not `&[u8; N]`) so it can be used in Anchor seed constraint arrays
+/// alongside other `&[u8]` seeds without type-size conflicts.
+pub const ESCROW_VAULT_SEED: &[u8] = b"escrow_vault";
 /// Max surge multiplier: 3× (30 000 basis points on top of 10 000 base)
 pub const MAX_SURGE_MULTIPLIER_BPS: u16 = 30_000;
 

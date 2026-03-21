@@ -1,5 +1,6 @@
 import { Router, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
+import rateLimit from 'express-rate-limit';
 import { authMiddleware, AuthRequest } from '../middleware/wallet-auth';
 import { generateOrderCodes } from '../services/code-generator';
 import { FEE_BASIS_POINTS, DEPOSIT_BASIS_POINTS } from '../config/constants';
@@ -7,6 +8,15 @@ import { emitOrderEvent, emitFundsReleased } from '../services/notification';
 
 const router = Router();
 const prisma = new PrismaClient();
+
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // max 100 requests per IP per window
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+router.use(apiLimiter);
 
 // Known token metadata (mint → symbol/sign)
 const TOKEN_META: Record<string, { symbol: string; currencySign: string }> = {

@@ -42,4 +42,8 @@ pub enum ForkitError {
     NotFullyFunded,
     #[msg("No contribution found for this address")]
     NoContribution,
+    #[msg("Surge multiplier exceeds maximum allowed value (3×)")]
+    SurgeMultiplierTooHigh,
+    #[msg("AI confidence score must be between 0 and 100")]
+    InvalidAIConfidence,
 }

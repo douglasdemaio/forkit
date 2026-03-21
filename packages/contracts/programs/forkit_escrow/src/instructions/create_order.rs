@@ -3,6 +3,10 @@ use anchor_spl::token::{self, Token, TokenAccount, Transfer, Mint};
 use crate::state::*;
 use crate::errors::ForkitError;
 
+/// Loyalty points awarded = 1% of (food_amount + delivery_amount) in base units.
+/// The loyalty program scales this further (e.g. AI bonus).
+pub const LOYALTY_POINTS_BPS: u64 = 100;
+
 #[derive(Accounts)]
 #[instruction(order_id: u64)]
 pub struct CreateOrder<'info> {
@@ -56,6 +60,9 @@ pub struct CreateOrder<'info> {
     #[account(mut)]
     pub customer: Signer<'info>,
 
+    /// Optional surge config — if present and active, delivery_amount is scaled up.
+    pub surge_config: Option<Account<'info, SurgeConfig>>,
+
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
@@ -69,15 +76,31 @@ pub fn handler(
     initial_contribution: u64,
     code_a_hash: [u8; 32],
     code_b_hash: [u8; 32],
+    /// Unix timestamp predicted by the AI routing model (0 = no AI prediction).
+    estimated_delivery_time: i64,
+    /// AI routing confidence 0–100 (0 = no AI routing applied).
+    ai_confidence: u8,
 ) -> Result<()> {
     let config = &ctx.accounts.protocol_config;
     let mint_key = ctx.accounts.token_mint.key();
 
     require!(config.is_mint_accepted(&mint_key), ForkitError::UnsupportedMint);
+    require!(ai_confidence <= 100, ForkitError::InvalidAIConfidence);
 
-    // Calculate amounts
+    // Apply surge pricing if the surge_config account is provided and active
+    let (effective_delivery_amount, surge_applied) =
+        if let Some(surge) = &ctx.accounts.surge_config {
+            let surged = surge
+                .apply_surge(delivery_amount)
+                .ok_or(ForkitError::ArithmeticOverflow)?;
+            (surged, surge.active && surge.multiplier_bps > 0)
+        } else {
+            (delivery_amount, false)
+        };
+
+    // Calculate amounts (use surge-adjusted delivery fee)
     let total = food_amount
-        .checked_add(delivery_amount)
+        .checked_add(effective_delivery_amount)
         .ok_or(ForkitError::ArithmeticOverflow)?;
     let deposit_amount = total
         .checked_mul(DEPOSIT_BASIS_POINTS)
@@ -105,7 +128,7 @@ pub fn handler(
     order.driver = Pubkey::default();
     order.token_mint = mint_key;
     order.food_amount = food_amount;
-    order.delivery_amount = delivery_amount;
+    order.delivery_amount = effective_delivery_amount;
     order.deposit_amount = deposit_amount;
     order.protocol_fee = protocol_fee;
     order.escrow_target = escrow_target;
@@ -118,6 +141,8 @@ pub fn handler(
     order.cancel_deadline = clock.unix_timestamp + CANCEL_WINDOW_SECONDS;
     order.pickup_confirmed_at = 0;
     order.delivery_confirmed_at = 0;
+    order.estimated_delivery_time = estimated_delivery_time;
+    order.ai_confidence = ai_confidence;
     order.bump = ctx.bumps.order;
 
     // Initialize contribution record for the creator
@@ -174,11 +199,21 @@ pub fn handler(
         restaurant: order.restaurant,
         token_mint: mint_key,
         food_amount,
-        delivery_amount,
+        delivery_amount: effective_delivery_amount,
         deposit_amount,
         escrow_target,
         protocol_fee,
     });
+
+    if estimated_delivery_time > 0 || ai_confidence > 0 || surge_applied {
+        emit!(OrderCreatedWithAI {
+            order_id,
+            estimated_delivery_time,
+            ai_confidence,
+            surge_applied,
+            effective_delivery_amount,
+        });
+    }
 
     Ok(())
 }

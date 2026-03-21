@@ -5,7 +5,7 @@ pub mod state;
 
 use instructions::*;
 
-declare_id!("ForkReg111111111111111111111111111111111");
+declare_id!("2riHMdVB6eFgeQjqvnqq2Mrpqea7hrMv5ZNRh7gZgB9S");
 
 #[program]
 pub mod forkit_registry {

@@ -6,7 +6,7 @@ pub mod errors;
 
 use instructions::*;
 
-declare_id!("ForkEscrow1111111111111111111111111111111");
+declare_id!("FNZXjjq2oceq15jVsnHT8gYJQUZ9NLCXCpYak2pXsqGB");
 
 #[program]
 pub mod forkit_escrow {
@@ -34,6 +34,13 @@ pub mod forkit_escrow {
     /// Create an order. The creator can optionally contribute an initial amount.
     /// If initial_contribution covers the full escrow_target, the order moves
     /// directly to Funded status. Otherwise, others can chip in via contribute_to_order.
+    ///
+    /// `estimated_delivery_time` and `ai_confidence` are provided by the backend AI
+    /// routing engine and stored on-chain for transparency and driver prioritisation.
+    /// Pass 0 for both if no AI routing is applied.
+    ///
+    /// If a `surge_config` account is passed and `active`, the delivery fee is scaled
+    /// by the current surge multiplier before being locked into the escrow.
     pub fn create_order(
         ctx: Context<CreateOrder>,
         order_id: u64,
@@ -42,10 +49,13 @@ pub mod forkit_escrow {
         initial_contribution: u64,
         code_a_hash: [u8; 32],
         code_b_hash: [u8; 32],
+        estimated_delivery_time: i64,
+        ai_confidence: u8,
     ) -> Result<()> {
         instructions::create_order::handler(
             ctx, order_id, food_amount, delivery_amount,
             initial_contribution, code_a_hash, code_b_hash,
+            estimated_delivery_time, ai_confidence,
         )
     }
 
@@ -99,5 +109,19 @@ pub mod forkit_escrow {
         resolution: state::DisputeResolution,
     ) -> Result<()> {
         instructions::resolve_dispute::handler(ctx, resolution)
+    }
+
+    /// Update the AI surge-pricing multiplier. Only callable by the protocol admin.
+    ///
+    /// The ForkIt AI pricing service calls this instruction whenever its demand
+    /// forecasting model detects a supply/demand imbalance — e.g. a lunch rush,
+    /// adverse weather, or a local event driving order spikes.  Setting `active = false`
+    /// disables surge without clearing the stored multiplier value.
+    pub fn set_surge_pricing(
+        ctx: Context<SetSurgePricing>,
+        multiplier_bps: u16,
+        active: bool,
+    ) -> Result<()> {
+        instructions::set_surge_pricing::handler(ctx, multiplier_bps, active)
     }
 }

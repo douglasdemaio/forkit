@@ -9,6 +9,46 @@ pub const DEPOSIT_BASIS_POINTS: u64 = 200; // 2%
 pub const FEE_BASIS_POINTS: u16 = 2; // 0.02%
 pub const MAX_ACCEPTED_MINTS: usize = 20;
 pub const MAX_CONTRIBUTORS: usize = 10;
+/// Typed as `&[u8]` (not `&[u8; N]`) so it can be used in Anchor seed constraint arrays
+/// alongside other `&[u8]` seeds without type-size conflicts.
+pub const ESCROW_VAULT_SEED: &[u8] = b"escrow_vault";
+/// Max surge multiplier: 3× (30 000 basis points on top of 10 000 base)
+pub const MAX_SURGE_MULTIPLIER_BPS: u16 = 30_000;
+
+/// Dynamic surge-pricing configuration, updated by AI demand prediction.
+///
+/// When `active`, the delivery fee passed into `create_order` is multiplied by
+/// `(10_000 + multiplier_bps) / 10_000` before being stored on the order.
+/// This allows the off-chain AI pricing engine to reflect real-time demand
+/// without requiring a program upgrade.
+#[account]
+pub struct SurgeConfig {
+    pub admin: Pubkey,
+    /// Additional basis points on top of the base delivery fee.
+    /// e.g. 5_000 = +50% surge. Capped at MAX_SURGE_MULTIPLIER_BPS.
+    pub multiplier_bps: u16,
+    /// Whether surge pricing is currently active.
+    pub active: bool,
+    /// Unix timestamp of the last update (for audit / transparency).
+    pub updated_at: i64,
+    pub bump: u8,
+}
+
+impl SurgeConfig {
+    pub const SEED: &'static [u8] = b"surge_config";
+    pub const SPACE: usize = 8 + 32 + 2 + 1 + 8 + 1;
+
+    /// Returns the effective delivery amount after applying surge.
+    pub fn apply_surge(&self, base_delivery_amount: u64) -> Option<u64> {
+        if !self.active || self.multiplier_bps == 0 {
+            return Some(base_delivery_amount);
+        }
+        let multiplied = base_delivery_amount
+            .checked_mul(10_000 + self.multiplier_bps as u64)?
+            .checked_div(10_000)?;
+        Some(multiplied)
+    }
+}
 
 #[account]
 pub struct ProtocolConfig {
@@ -57,6 +97,12 @@ pub struct Order {
     pub cancel_deadline: i64,
     pub pickup_confirmed_at: i64,
     pub delivery_confirmed_at: i64,
+    /// Unix timestamp the AI routing engine predicts the order will be delivered.
+    /// Set at order creation by the backend AI model; 0 if not provided.
+    pub estimated_delivery_time: i64,
+    /// AI routing confidence score (0–100). Used by drivers to prioritise
+    /// high-confidence routes. 0 means no AI routing was applied.
+    pub ai_confidence: u8,
     pub bump: u8,
 }
 
@@ -83,6 +129,8 @@ impl Order {
         8 + // cancel_deadline
         8 + // pickup_confirmed_at
         8 + // delivery_confirmed_at
+        8 + // estimated_delivery_time
+        1 + // ai_confidence
         1; // bump
 
     pub fn is_fully_funded(&self) -> bool {
@@ -193,6 +241,12 @@ pub struct DeliveryConfirmed {
     pub restaurant_payout: u64,
     pub driver_payout: u64,
     pub protocol_fee: u64,
+    /// Loyalty points to be awarded to the customer (1% of total order value).
+    /// The backend listens for this event and calls `earn_points` on the loyalty program.
+    pub loyalty_points_for_customer: u64,
+    /// Whether this order was AI-routed (ai_confidence > 0). If true, the loyalty
+    /// program will apply its 50% AI bonus on top of loyalty_points_for_customer.
+    pub is_ai_order: bool,
 }
 
 #[event]
@@ -225,4 +279,20 @@ pub struct DisputeOpened {
 pub struct DisputeResolved {
     pub order_id: u64,
     pub resolution: DisputeResolution,
+}
+
+#[event]
+pub struct SurgeUpdated {
+    pub multiplier_bps: u16,
+    pub active: bool,
+    pub updated_at: i64,
+}
+
+#[event]
+pub struct OrderCreatedWithAI {
+    pub order_id: u64,
+    pub estimated_delivery_time: i64,
+    pub ai_confidence: u8,
+    pub surge_applied: bool,
+    pub effective_delivery_amount: u64,
 }

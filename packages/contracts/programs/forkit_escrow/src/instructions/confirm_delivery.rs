@@ -3,6 +3,7 @@ use anchor_lang::solana_program::hash::hash;
 use anchor_spl::token::{self, Token, TokenAccount, Transfer};
 use crate::state::*;
 use crate::errors::ForkitError;
+use crate::instructions::create_order::LOYALTY_POINTS_BPS;
 
 #[derive(Accounts)]
 pub struct ConfirmDelivery<'info> {
@@ -16,7 +17,7 @@ pub struct ConfirmDelivery<'info> {
 
     #[account(
         mut,
-        seeds = [b"escrow_vault", &order.order_id.to_le_bytes()],
+        seeds = [ESCROW_VAULT_SEED, &order.order_id.to_le_bytes()],
         bump,
     )]
     pub escrow_vault: Account<'info, TokenAccount>,
@@ -131,6 +132,15 @@ pub fn handler(ctx: Context<ConfirmDelivery>, code_b: String) -> Result<()> {
         order.protocol_fee,
     )?;
 
+    // Compute loyalty points to award the customer (1% of total order value).
+    // The backend event listener calls earn_points on the loyalty program with this value.
+    let loyalty_points = (order.food_amount + order.delivery_amount)
+        .checked_mul(LOYALTY_POINTS_BPS)
+        .unwrap_or(0)
+        .checked_div(10_000)
+        .unwrap_or(0);
+    let is_ai_order = order.ai_confidence > 0;
+
     order.status = OrderStatus::Settled;
     order.delivery_confirmed_at = clock.unix_timestamp;
 
@@ -140,6 +150,8 @@ pub fn handler(ctx: Context<ConfirmDelivery>, code_b: String) -> Result<()> {
         restaurant_payout,
         driver_payout,
         protocol_fee: order.protocol_fee,
+        loyalty_points_for_customer: loyalty_points,
+        is_ai_order,
     });
 
     Ok(())

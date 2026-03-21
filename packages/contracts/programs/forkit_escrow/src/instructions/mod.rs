@@ -13,6 +13,7 @@ pub mod refund_contributor;
 pub mod timeout_refund;
 pub mod open_dispute;
 pub mod resolve_dispute;
+pub mod set_surge_pricing;
 
 pub use initialize_protocol::*;
 pub use update_protocol_config::*;
@@ -29,3 +30,4 @@ pub use refund_contributor::*;
 pub use timeout_refund::*;
 pub use open_dispute::*;
 pub use resolve_dispute::*;
+pub use set_surge_pricing::*;

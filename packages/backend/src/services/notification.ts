@@ -38,13 +38,64 @@ export type OrderEvent =
   | 'order:ready'
   | 'order:picked-up'
   | 'order:delivered'
+  | 'order:settled'
+  | 'order:funds-released'
   | 'order:cancelled'
+  | 'order:refunded'
   | 'order:disputed';
 
-export function emitOrderEvent(orderId: string, event: OrderEvent, data?: Record<string, unknown>): void {
+export interface FundsReleasedPayload {
+  orderId: string;
+  txSignature: string;
+  totalReleased: number;
+  restaurantReceived: number;
+  driverReceived: number;
+  depositRefunded: number;
+  tokenSymbol: string;
+}
+
+export function emitOrderEvent(
+  orderId: string,
+  event: OrderEvent,
+  data?: Record<string, unknown>
+): void {
   if (!io) {
     console.warn('WebSocket not initialized');
     return;
   }
-  io.to(`order:${orderId}`).emit(event, { orderId, ...data });
+  io.to(`order:${orderId}`).emit(event, {
+    orderId,
+    timestamp: new Date().toISOString(),
+    ...data,
+  });
+}
+
+/** Emit the funds-released event with full payment breakdown */
+export function emitFundsReleased(orderId: string, payload: FundsReleasedPayload): void {
+  if (!io) {
+    console.warn('WebSocket not initialized');
+    return;
+  }
+  io.to(`order:${orderId}`).emit('order:funds-released', {
+    timestamp: new Date().toISOString(),
+    ...payload,
+  });
+  // Also emit the settled status event
+  io.to(`order:${orderId}`).emit('order:settled', {
+    orderId,
+    timestamp: new Date().toISOString(),
+    txSignature: payload.txSignature,
+  });
+}
+
+/** Emit pickup event with delivery service type */
+export function emitPickedUp(
+  orderId: string,
+  deliveryService: 'human' | 'ai',
+  driverName?: string
+): void {
+  emitOrderEvent(orderId, 'order:picked-up', {
+    deliveryService,
+    driverName: driverName ?? (deliveryService === 'ai' ? 'AI Delivery Service' : 'Driver'),
+  });
 }

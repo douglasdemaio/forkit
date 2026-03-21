@@ -9,6 +9,8 @@ export type OrderStatus =
   | 'Cancelled'
   | 'Refunded';
 
+export type DeliveryService = 'human' | 'ai';
+
 export type Role = 'Restaurant' | 'Driver' | 'Customer';
 
 export interface Restaurant {
@@ -64,6 +66,8 @@ export interface Order {
   status: OrderStatus;
   createdAt: string;
   settledAt?: string;
+  settleTxSignature?: string;
+  deliveryService?: DeliveryService;
   restaurant?: Restaurant;
 }
 
@@ -79,4 +83,48 @@ export interface TrustScore {
   completedOrders: number;
   totalRatings: number;
   averageRating: number;
+}
+
+/** One entry in the order's status timeline */
+export interface StatusEvent {
+  status: OrderStatus;
+  timestamp: string;
+  txSignature?: string;
+  deliveryService?: DeliveryService;
+  /** Human-readable note for this transition */
+  note?: string;
+}
+
+/** Full receipt returned by the receipt API */
+export interface OrderReceipt {
+  orderId: string;
+  onChainOrderId: string;
+  restaurantName: string;
+  items: CartItem[];
+  tokenMint: string;
+  tokenSymbol: string;
+  currencySign: string;
+  foodTotal: number;
+  deliveryFee: number;
+  protocolFee: number;
+  depositAmount: number;
+  depositRefunded: number;
+  totalCharged: number;
+  netPaid: number;
+  status: OrderStatus;
+  createdAt: string;
+  settledAt?: string;
+  settleTxSignature?: string;
+  deliveryService?: DeliveryService;
+}
+
+/** Payload emitted with the order:funds-released WebSocket event */
+export interface FundsReleasedPayload {
+  orderId: string;
+  txSignature: string;
+  totalReleased: number;
+  restaurantReceived: number;
+  driverReceived: number;
+  depositRefunded: number;
+  tokenSymbol: string;
 }

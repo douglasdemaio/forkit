@@ -80,6 +80,10 @@ pub fn handler(
     estimated_delivery_time: i64,
     // ai_confidence: AI routing confidence 0-100 (0 = no AI routing applied).
     ai_confidence: u8,
+    // requested_delivery_time: Customer-preferred delivery time (0 = ASAP).
+    requested_delivery_time: i64,
+    // requested_pickup_time: Customer-preferred pickup time (0 = ASAP).
+    requested_pickup_time: i64,
 ) -> Result<()> {
     let config = &ctx.accounts.protocol_config;
     let mint_key = ctx.accounts.token_mint.key();
@@ -102,21 +106,14 @@ pub fn handler(
     let total = food_amount
         .checked_add(effective_delivery_amount)
         .ok_or(ForkitError::ArithmeticOverflow)?;
-    let deposit_amount = total
-        .checked_mul(DEPOSIT_BASIS_POINTS)
-        .ok_or(ForkitError::ArithmeticOverflow)?
-        .checked_div(10000)
-        .ok_or(ForkitError::ArithmeticOverflow)?;
     let protocol_fee = total
         .checked_mul(config.fee_basis_points as u64)
         .ok_or(ForkitError::ArithmeticOverflow)?
         .checked_div(10000)
         .ok_or(ForkitError::ArithmeticOverflow)?;
 
-    // Total needed in escrow: food + delivery + deposit
-    let escrow_target = total
-        .checked_add(deposit_amount)
-        .ok_or(ForkitError::ArithmeticOverflow)?;
+    // Total needed in escrow: food + delivery (no deposit)
+    let escrow_target = total;
 
     let clock = Clock::get()?;
 
@@ -129,7 +126,6 @@ pub fn handler(
     order.token_mint = mint_key;
     order.food_amount = food_amount;
     order.delivery_amount = effective_delivery_amount;
-    order.deposit_amount = deposit_amount;
     order.protocol_fee = protocol_fee;
     order.escrow_target = escrow_target;
     order.escrow_funded = 0;
@@ -142,6 +138,8 @@ pub fn handler(
     order.pickup_confirmed_at = 0;
     order.delivery_confirmed_at = 0;
     order.estimated_delivery_time = estimated_delivery_time;
+    order.requested_delivery_time = requested_delivery_time;
+    order.requested_pickup_time = requested_pickup_time;
     order.ai_confidence = ai_confidence;
     order.bump = ctx.bumps.order;
 
@@ -200,9 +198,10 @@ pub fn handler(
         token_mint: mint_key,
         food_amount,
         delivery_amount: effective_delivery_amount,
-        deposit_amount,
         escrow_target,
         protocol_fee,
+        requested_delivery_time,
+        requested_pickup_time,
     });
 
     if estimated_delivery_time > 0 || ai_confidence > 0 || surge_applied {

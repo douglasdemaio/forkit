@@ -2,10 +2,9 @@ use anchor_lang::prelude::*;
 
 pub const CANCEL_WINDOW_SECONDS: i64 = 60;
 pub const PREP_TIMEOUT_SECONDS: i64 = 2700; // 45 minutes
-pub const PICKUP_TIMEOUT_SECONDS: i64 = 1800; // 30 minutes
-pub const DELIVERY_TIMEOUT_SECONDS: i64 = 7200; // 2 hours
+pub const PICKUP_TIMEOUT_SECONDS: i64 = 2700; // 45 minutes
+pub const DELIVERY_TIMEOUT_SECONDS: i64 = 10800; // 3 hours
 pub const FUNDING_TIMEOUT_SECONDS: i64 = 900; // 15 minutes to fully fund
-pub const DEPOSIT_BASIS_POINTS: u64 = 200; // 2%
 pub const FEE_BASIS_POINTS: u16 = 2; // 0.02%
 pub const MAX_ACCEPTED_MINTS: usize = 20;
 pub const MAX_CONTRIBUTORS: usize = 10;
@@ -85,9 +84,8 @@ pub struct Order {
     pub token_mint: Pubkey,
     pub food_amount: u64,
     pub delivery_amount: u64,
-    pub deposit_amount: u64,      // total deposit required: 2% of (food+delivery)
     pub protocol_fee: u64,
-    pub escrow_target: u64,       // total needed in escrow (food+delivery+deposit)
+    pub escrow_target: u64,       // total needed in escrow (food+delivery)
     pub escrow_funded: u64,       // total funded so far
     pub contributor_count: u8,    // number of contributors
     pub code_a_hash: [u8; 32],
@@ -100,6 +98,12 @@ pub struct Order {
     /// Unix timestamp the AI routing engine predicts the order will be delivered.
     /// Set at order creation by the backend AI model; 0 if not provided.
     pub estimated_delivery_time: i64,
+    /// Customer-requested delivery time (Unix timestamp). 0 = ASAP.
+    /// Allows customers to schedule a preferred delivery window.
+    pub requested_delivery_time: i64,
+    /// Customer-requested pickup time (Unix timestamp). 0 = ASAP.
+    /// Allows customers to schedule a preferred pickup window.
+    pub requested_pickup_time: i64,
     /// AI routing confidence score (0–100). Used by drivers to prioritise
     /// high-confidence routes. 0 means no AI routing was applied.
     pub ai_confidence: u8,
@@ -117,7 +121,6 @@ impl Order {
         32 + // token_mint
         8 + // food_amount
         8 + // delivery_amount
-        8 + // deposit_amount
         8 + // protocol_fee
         8 + // escrow_target
         8 + // escrow_funded
@@ -130,6 +133,8 @@ impl Order {
         8 + // pickup_confirmed_at
         8 + // delivery_confirmed_at
         8 + // estimated_delivery_time
+        8 + // requested_delivery_time
+        8 + // requested_pickup_time
         1 + // ai_confidence
         1; // bump
 
@@ -189,9 +194,10 @@ pub struct OrderCreated {
     pub token_mint: Pubkey,
     pub food_amount: u64,
     pub delivery_amount: u64,
-    pub deposit_amount: u64,
     pub escrow_target: u64,
     pub protocol_fee: u64,
+    pub requested_delivery_time: i64,
+    pub requested_pickup_time: i64,
 }
 
 #[event]
@@ -257,10 +263,10 @@ pub struct ContributorRefunded {
 }
 
 #[event]
-pub struct DepositReturned {
+pub struct ContributorReimbursed {
     pub order_id: u64,
     pub contributor: Pubkey,
-    pub deposit_share: u64,
+    pub reimbursement: u64,
 }
 
 #[event]

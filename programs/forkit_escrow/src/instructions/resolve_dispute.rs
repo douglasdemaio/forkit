@@ -39,7 +39,7 @@ pub struct ResolveDispute<'info> {
 
 /// Resolve a dispute. Three outcomes:
 /// - RefundCustomer: set status to Refunded, contributors claim via refund_contributor
-/// - PayRestaurantAndDriver: pay them from escrow, set Refunded for deposit claims
+/// - PayRestaurantAndDriver: pay them from escrow, set Refunded for remaining contributor claims
 /// - Split: pay restaurant+driver half, set Refunded for contributor claims on remainder
 pub fn handler(ctx: Context<ResolveDispute>, resolution: DisputeResolution) -> Result<()> {
     let order = &mut ctx.accounts.order;
@@ -84,7 +84,7 @@ pub fn handler(ctx: Context<ResolveDispute>, resolution: DisputeResolution) -> R
                 ),
                 driver_payout,
             )?;
-            // Remaining (deposit) stays for contributors to claim via refund_contributor
+            // Remaining excess stays for contributors to claim via refund_contributor
         }
         DisputeResolution::Split => {
             let escrow_balance = ctx.accounts.escrow_vault.amount;

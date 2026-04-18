@@ -54,7 +54,8 @@ pub struct ConfirmDelivery<'info> {
 }
 
 /// Confirms delivery, pays restaurant + driver + treasury.
-/// Deposit remains in escrow — each contributor claims their share via `claim_deposit`.
+/// If the escrow was overfunded (multiple contributors), excess remains in
+/// the vault for contributors to claim via `claim_deposit` (reimbursement).
 pub fn handler(ctx: Context<ConfirmDelivery>, code_b: String) -> Result<()> {
     let order = &mut ctx.accounts.order;
 

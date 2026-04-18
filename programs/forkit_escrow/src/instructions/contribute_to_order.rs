@@ -53,11 +53,13 @@ pub fn handler(ctx: Context<ContributeToOrder>, amount: u64) -> Result<()> {
     let order = &ctx.accounts.order;
 
     require!(amount > 0, ForkitError::ZeroContribution);
+    // Allow contributions while Created (pre-funding) or Funded (post-funding
+    // reimbursement model: friends chip in to reimburse the original payer).
     require!(
-        order.status == OrderStatus::Created,
+        order.status == OrderStatus::Created || order.status == OrderStatus::Funded
+            || order.status == OrderStatus::Preparing || order.status == OrderStatus::ReadyForPickup,
         ForkitError::InvalidOrderStatus
     );
-    require!(!order.is_fully_funded(), ForkitError::AlreadyFullyFunded);
 
     // Check funding timeout
     let clock = Clock::get()?;
@@ -66,11 +68,23 @@ pub fn handler(ctx: Context<ContributeToOrder>, amount: u64) -> Result<()> {
         ForkitError::FundingExpired
     );
 
-    // Cap contribution at remaining needed
-    let remaining = order.escrow_target
-        .checked_sub(order.escrow_funded)
-        .ok_or(ForkitError::ArithmeticOverflow)?;
-    let actual_amount = amount.min(remaining);
+    // If not yet fully funded, cap at remaining. If already funded, accept
+    // the full amount — it will be available as reimbursement to earlier contributors.
+    let actual_amount = if order.escrow_funded < order.escrow_target {
+        let remaining = order.escrow_target
+            .checked_sub(order.escrow_funded)
+            .ok_or(ForkitError::ArithmeticOverflow)?;
+        amount.min(remaining)
+    } else {
+        // Already funded — this is a reimbursement contribution.
+        // Cap at escrow_target so nobody can overfund beyond 2× the order.
+        let max_overfund = order.escrow_target;
+        let current_excess = order.escrow_funded.saturating_sub(order.escrow_target);
+        let room = max_overfund.saturating_sub(current_excess);
+        amount.min(room)
+    };
+
+    require!(actual_amount > 0, ForkitError::AlreadyFullyFunded);
 
     // Track if this is a new contributor
     let contribution = &mut ctx.accounts.contribution;

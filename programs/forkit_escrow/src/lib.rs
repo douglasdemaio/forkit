@@ -51,11 +51,14 @@ pub mod forkit_escrow {
         code_b_hash: [u8; 32],
         estimated_delivery_time: i64,
         ai_confidence: u8,
+        requested_delivery_time: i64,
+        requested_pickup_time: i64,
     ) -> Result<()> {
         instructions::create_order::handler(
             ctx, order_id, food_amount, delivery_amount,
             initial_contribution, code_a_hash, code_b_hash,
             estimated_delivery_time, ai_confidence,
+            requested_delivery_time, requested_pickup_time,
         )
     }
 
@@ -85,7 +88,7 @@ pub mod forkit_escrow {
         instructions::confirm_delivery::handler(ctx, code_b)
     }
 
-    /// After settlement, each contributor claims their proportional deposit share.
+    /// After settlement, contributors claim proportional reimbursement of excess funds.
     pub fn claim_deposit(ctx: Context<ClaimDeposit>) -> Result<()> {
         instructions::claim_deposit::handler(ctx)
     }

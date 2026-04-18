@@ -3,15 +3,20 @@ use anchor_spl::token::{self, Token, TokenAccount, Transfer};
 use crate::state::*;
 use crate::errors::ForkitError;
 
-/// After successful delivery (Settled), each contributor claims their
-/// proportional share of the deposit that was returned.
+/// After successful delivery (Settled), contributors who funded more than their
+/// fair share can claim a reimbursement.
 ///
-/// deposit_share = (contribution.amount / order.escrow_funded) * order.deposit_amount
+/// When multiple people contribute to an order, the original payer (who likely
+/// fronted the full amount) gets reimbursed proportionally as others chip in.
+/// After settlement, each contributor's fair share is:
+///   fair_share = escrow_target / contributor_count
+/// If a contributor funded more than their fair share, the excess is claimable.
 ///
-/// Example: Order total 100 USDC, deposit 2 USDC (2%), escrow_target 102 USDC.
-/// Person A contributed 71.4 USDC (70%), Person B contributed 30.6 USDC (30%).
-/// Person A's deposit share = 2 * 71.4/102 = 1.4 USDC
-/// Person B's deposit share = 2 * 30.6/102 = 0.6 USDC
+/// Example: Order total 100 USDC. Person A paid 100 USDC. Person B contributed 40 USDC.
+/// The escrow now has 140 USDC (100 target + 40 excess).
+/// After settlement, 100 USDC is distributed to restaurant + driver + treasury.
+/// The remaining 40 USDC in the vault is Person A's reimbursement (since Person B
+/// effectively covered 40 USDC of the order that Person A had already paid).
 #[derive(Accounts)]
 pub struct ClaimDeposit<'info> {
     #[account(
@@ -50,13 +55,29 @@ pub fn handler(ctx: Context<ClaimDeposit>) -> Result<()> {
     let order = &ctx.accounts.order;
     let contribution = &mut ctx.accounts.contribution;
 
-    // Calculate proportional deposit share
-    // deposit_share = deposit_amount * contribution / escrow_funded
-    let deposit_share = (order.deposit_amount as u128)
+    // If the escrow was overfunded (total contributions > escrow_target),
+    // the excess belongs proportionally to contributors.
+    // Each contributor's reimbursement = excess * (their_contribution / total_funded)
+    let excess = order.escrow_funded
+        .checked_sub(order.escrow_target)
+        .unwrap_or(0);
+
+    if excess == 0 {
+        // Nothing to reimburse — escrow was funded exactly
+        contribution.amount = 0;
+        return Ok(());
+    }
+
+    let reimbursement = (excess as u128)
         .checked_mul(contribution.amount as u128)
         .ok_or(ForkitError::ArithmeticOverflow)?
         .checked_div(order.escrow_funded as u128)
         .ok_or(ForkitError::ArithmeticOverflow)? as u64;
+
+    if reimbursement == 0 {
+        contribution.amount = 0;
+        return Ok(());
+    }
 
     let order_id_bytes = order.order_id.to_le_bytes();
     let seeds = &[b"escrow_vault" as &[u8], &order_id_bytes, &[ctx.bumps.escrow_vault]];
@@ -71,7 +92,7 @@ pub fn handler(ctx: Context<ClaimDeposit>) -> Result<()> {
             },
             &[seeds],
         ),
-        deposit_share,
+        reimbursement,
     )?;
 
     let contributor_key = contribution.contributor;
@@ -79,10 +100,10 @@ pub fn handler(ctx: Context<ClaimDeposit>) -> Result<()> {
     // Zero out to prevent double-claim
     contribution.amount = 0;
 
-    emit!(DepositReturned {
+    emit!(ContributorReimbursed {
         order_id: order.order_id,
         contributor: contributor_key,
-        deposit_share,
+        reimbursement,
     });
 
     Ok(())

@@ -19,6 +19,15 @@ pub mod forkit_registry {
         instructions::update_metadata::handler(ctx, new_uri)
     }
 
+    /// Update the payout wallet for a profile. Only the profile owner can call this.
+    /// Emits a PayoutWalletChanged event for on-chain audit trail.
+    pub fn update_payout_wallet(
+        ctx: Context<UpdatePayoutWallet>,
+        new_payout_wallet: Pubkey,
+    ) -> Result<()> {
+        instructions::update_payout_wallet::handler(ctx, new_payout_wallet)
+    }
+
     pub fn rate_counterparty(
         ctx: Context<RateCounterparty>,
         _order_id: u64,

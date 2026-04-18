@@ -67,22 +67,22 @@ Created → Funded → Preparing → ReadyForPickup → PickedUp → Delivered �
    └── (funding timeout 15min) → Refunded
 ```
 
-1. **Created** — Customer places an order; funds (food + delivery fee) are locked in an escrow PDA. If the initial contribution doesn’t cover the full amount, others can chip in.
-2. **Funded** — Escrow is fully funded. Ready for the restaurant. Friends can still contribute to reimburse the original payer.
-3. **Preparing** — Restaurant accepts the order via `accept_order`.
-4. **ReadyForPickup** — Restaurant marks food as ready.
-5. **PickedUp** — Driver confirms pickup by submitting Code A (hash-verified on-chain).
-6. **Delivered** — Customer confirms delivery by submitting Code B. Settlement occurs atomically:
+1. **Created** - Customer places an order; funds (food + delivery fee) are locked in an escrow PDA. If the initial contribution doesn't cover the full amount, others can chip in.
+2. **Funded** - Escrow is fully funded. Ready for the restaurant. Friends can still contribute to reimburse the original payer.
+3. **Preparing** - Restaurant accepts the order via `accept_order`.
+4. **ReadyForPickup** - Restaurant marks food as ready.
+5. **PickedUp** - Driver confirms pickup by submitting Code A (hash-verified on-chain).
+6. **Delivered** - Customer confirms delivery by submitting Code B. Settlement occurs atomically:
    - Restaurant receives the food amount
    - Driver receives the delivery fee
    - Treasury receives the 0.02% protocol fee
-7. **Settled** — All parties have claimed their funds. If the escrow was overfunded (friends contributed after funding), excess is returned proportionally to contributors.
+7. **Settled** - All parties have claimed their funds. If the escrow was overfunded (friends contributed after funding), excess is returned proportionally to contributors.
 
 Timeouts at any stage trigger automatic refunds. Disputes can be opened after pickup and are resolved by admin arbitration (refund customer, pay restaurant+driver, or split).
 
 ### Reimbursement Model
 
-When a customer places an order, they typically front the full amount. Friends can then contribute via `contribute_to_order` — even after the order is funded. These additional contributions are held in the escrow vault. After settlement, the original payer (and any over-contributors) can call `claim_deposit` to receive their proportional share of the excess funds. This effectively lets friends split the bill without requiring coordination upfront.
+When a customer places an order, they typically front the full amount. Friends can then contribute via `contribute_to_order` - even after the order is funded. These additional contributions are held in the escrow vault. After settlement, the original payer (and any over-contributors) can call `claim_deposit` to receive their proportional share of the excess funds. This effectively lets friends split the bill without requiring coordination upfront.
 
 ---
 
@@ -114,7 +114,7 @@ Core program managing the full order lifecycle, escrow vault, and fee distributi
 #### Accounts
 
 - **ProtocolConfig** - Global protocol settings (admin, treasury, fee rate, accepted mints)
-- **Order** — Per-order state (amounts, status, timestamps, delivery codes, AI routing data, scheduled delivery/pickup times)
+- **Order** - Per-order state (amounts, status, timestamps, delivery codes, AI routing data, scheduled delivery/pickup times)
 - **Contribution** - Per-contributor funding record for an order
 - **SurgeConfig** - Dynamic surge pricing state (multiplier, active flag)
 
@@ -130,12 +130,13 @@ On-chain identity and reputation for all participants.
 |---|---|---|
 | `register` | Anyone | Create a profile PDA (role: Restaurant, Driver, or Customer) |
 | `update_metadata` | Profile owner | Update profile metadata URI |
+| `update_payout_wallet` | Profile owner | Change the payout wallet address (emits auditable on-chain event) |
 | `rate_counterparty` | Post-order | Submit 1-5 star rating, recalculates trust score |
 | `update_loyalty_points` | Loyalty program | Sync points balance to profile |
 
 #### Accounts
 
-- **Profile** - Per-wallet identity (role, trust score, completed orders, ratings, loyalty points, metadata URI)
+- **Profile** — Per-wallet identity (role, payout wallet, trust score, completed orders, ratings, loyalty points, metadata URI)
 
 #### Trust Score
 
@@ -146,7 +147,7 @@ Trust scores (0-100.00) are calculated from:
 
 #### Events
 
-`ProfileRegistered` · `ProfileRated`
+`ProfileRegistered` · `ProfileRated` · `PayoutWalletChanged`
 
 ### forkit_loyalty
 

@@ -24,6 +24,7 @@ pub fn handler(ctx: Context<Register>, role: Role, metadata_uri: String) -> Resu
     let profile = &mut ctx.accounts.profile;
 
     profile.wallet = ctx.accounts.wallet.key();
+    profile.payout_wallet = ctx.accounts.wallet.key(); // defaults to signing wallet
     profile.role = role;
     profile.trust_score = 5000; // Start at 50.00
     profile.completed_orders = 0;

@@ -7,6 +7,10 @@ pub const SECONDS_PER_DAY: i64 = 86400;
 #[account]
 pub struct Profile {
     pub wallet: Pubkey,
+    /// Wallet that receives payouts (food/delivery settlement).
+    /// Defaults to `wallet` on registration. Can be changed via `update_payout_wallet`.
+    /// Allows separation of operational (signing) wallet from business (receiving) wallet.
+    pub payout_wallet: Pubkey,
     pub role: Role,
     pub trust_score: u32,        // 0-10000 (0.00-100.00)
     pub completed_orders: u64,
@@ -27,6 +31,7 @@ impl Profile {
 
     pub const SPACE: usize = 8 + // discriminator
         32 + // wallet
+        32 + // payout_wallet
         1 + // role
         4 + // trust_score
         8 + // completed_orders
@@ -90,4 +95,18 @@ pub struct ProfileRated {
     pub target: Pubkey,
     pub rating: u8,
     pub new_trust_score: u32,
+}
+
+/// Emitted whenever a profile's payout wallet is changed.
+/// Provides a permanent on-chain audit trail of all payout wallet changes.
+#[event]
+pub struct PayoutWalletChanged {
+    /// The profile owner (operational wallet that signed the change)
+    pub wallet: Pubkey,
+    /// Previous payout destination
+    pub old_payout_wallet: Pubkey,
+    /// New payout destination
+    pub new_payout_wallet: Pubkey,
+    /// Unix timestamp of the change
+    pub changed_at: i64,
 }

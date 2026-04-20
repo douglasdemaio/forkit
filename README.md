@@ -80,6 +80,8 @@ Created → Funded → Preparing → ReadyForPickup → PickedUp → Delivered �
 
 Timeouts at any stage trigger automatic refunds. Disputes can be opened after pickup and are resolved by admin arbitration (refund customer, pay restaurant+driver, or split).
 
+> **Off-chain API alignment:** The `forkit-site` Next.js API and the `forkme` mobile app use these same status names exactly (PascalCase). Status transitions in the off-chain DB mirror on-chain state — see the forkit-site repository for the full API contract.
+
 ### Reimbursement Model
 
 When a customer places an order, they typically front the full amount. Friends can then contribute via `contribute_to_order` - even after the order is funded. These additional contributions are held in the escrow vault. After settlement, the original payer (and any over-contributors) can call `claim_deposit` to receive their proportional share of the excess funds. This effectively lets friends split the bill without requiring coordination upfront.

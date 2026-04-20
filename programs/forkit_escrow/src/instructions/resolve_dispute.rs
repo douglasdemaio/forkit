@@ -26,10 +26,22 @@ pub struct ResolveDispute<'info> {
     )]
     pub escrow_vault: Account<'info, TokenAccount>,
 
-    #[account(mut, constraint = restaurant_token_account.owner == order.restaurant)]
+    #[account(
+        mut,
+        constraint = restaurant_token_account.owner == order.restaurant
+            @ ForkitError::Unauthorized,
+        constraint = restaurant_token_account.mint == order.token_mint
+            @ ForkitError::UnsupportedMint,
+    )]
     pub restaurant_token_account: Account<'info, TokenAccount>,
 
-    #[account(mut, constraint = driver_token_account.owner == order.driver)]
+    #[account(
+        mut,
+        constraint = driver_token_account.owner == order.driver
+            @ ForkitError::Unauthorized,
+        constraint = driver_token_account.mint == order.token_mint
+            @ ForkitError::UnsupportedMint,
+    )]
     pub driver_token_account: Account<'info, TokenAccount>,
 
     /// Arbiter (protocol admin for MVP)
@@ -57,6 +69,11 @@ pub fn handler(ctx: Context<ResolveDispute>, resolution: DisputeResolution) -> R
             // All funds stay in escrow — contributors claim via refund_contributor
         }
         DisputeResolution::PayRestaurantAndDriver => {
+            require!(
+                order.driver != Pubkey::default(),
+                ForkitError::DriverNotAssigned
+            );
+
             let restaurant_payout = order.food_amount;
             let driver_payout = order.delivery_amount;
 
@@ -87,10 +104,23 @@ pub fn handler(ctx: Context<ResolveDispute>, resolution: DisputeResolution) -> R
             // Remaining excess stays for contributors to claim via refund_contributor
         }
         DisputeResolution::Split => {
+            require!(
+                order.driver != Pubkey::default(),
+                ForkitError::DriverNotAssigned
+            );
+
             let escrow_balance = ctx.accounts.escrow_vault.amount;
             let half = escrow_balance / 2;
-            let total = order.food_amount + order.delivery_amount;
-            let restaurant_share = half * order.food_amount / total;
+            let food_amt = order.food_amount as u128;
+            let total = food_amt
+                .checked_add(order.delivery_amount as u128)
+                .ok_or(ForkitError::ArithmeticOverflow)?;
+            let restaurant_share = (half as u128)
+                .checked_mul(food_amt)
+                .ok_or(ForkitError::ArithmeticOverflow)?
+                .checked_div(total)
+                .ok_or(ForkitError::ArithmeticOverflow)? as u64;
+            // half >= restaurant_share always (food_amt <= total), so this is safe
             let driver_share = half - restaurant_share;
 
             token::transfer(

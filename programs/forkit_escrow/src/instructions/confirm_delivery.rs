@@ -28,24 +28,33 @@ pub struct ConfirmDelivery<'info> {
     )]
     pub protocol_config: Account<'info, ProtocolConfig>,
 
-    /// Restaurant's token account
+    /// Restaurant's token account — must hold the correct mint
     #[account(
         mut,
-        constraint = restaurant_token_account.owner == order.restaurant,
+        constraint = restaurant_token_account.owner == order.restaurant
+            @ ForkitError::Unauthorized,
+        constraint = restaurant_token_account.mint == order.token_mint
+            @ ForkitError::UnsupportedMint,
     )]
     pub restaurant_token_account: Account<'info, TokenAccount>,
 
-    /// Driver's token account
+    /// Driver's token account — must hold the correct mint
     #[account(
         mut,
-        constraint = driver_token_account.owner == order.driver,
+        constraint = driver_token_account.owner == order.driver
+            @ ForkitError::Unauthorized,
+        constraint = driver_token_account.mint == order.token_mint
+            @ ForkitError::UnsupportedMint,
     )]
     pub driver_token_account: Account<'info, TokenAccount>,
 
-    /// Treasury token account for protocol fee
+    /// Treasury token account for protocol fee — must hold the correct mint
     #[account(
         mut,
-        constraint = treasury_token_account.owner == protocol_config.treasury_wallet,
+        constraint = treasury_token_account.owner == protocol_config.treasury_wallet
+            @ ForkitError::Unauthorized,
+        constraint = treasury_token_account.mint == order.token_mint
+            @ ForkitError::UnsupportedMint,
     )]
     pub treasury_token_account: Account<'info, TokenAccount>,
 
@@ -75,21 +84,38 @@ pub fn handler(ctx: Context<ConfirmDelivery>, code_b: String) -> Result<()> {
     let order_id_bytes = order.order_id.to_le_bytes();
     let seeds = &[b"escrow_vault" as &[u8], &order_id_bytes, &[ctx.bumps.escrow_vault]];
 
-    // Calculate fee split proportional to food/delivery amounts
-    let total = order.food_amount + order.delivery_amount;
-    let food_fee = order
-        .protocol_fee
-        .checked_mul(order.food_amount)
-        .ok_or(ForkitError::ArithmeticOverflow)?
-        .checked_div(total)
-        .ok_or(ForkitError::ArithmeticOverflow)?;
-    let delivery_fee = order.protocol_fee.checked_sub(food_fee)
+    // Use u128 for intermediate fee calculations to prevent overflow on large orders.
+    let food_amt = order.food_amount as u128;
+    let delivery_amt = order.delivery_amount as u128;
+    let total = food_amt
+        .checked_add(delivery_amt)
         .ok_or(ForkitError::ArithmeticOverflow)?;
 
-    let restaurant_payout = order.food_amount.checked_sub(food_fee)
+    let protocol_fee = order.protocol_fee as u128;
+
+    // food_fee = protocol_fee * food_amount / total  (rounded down)
+    let food_fee = protocol_fee
+        .checked_mul(food_amt)
+        .ok_or(ForkitError::ArithmeticOverflow)?
+        .checked_div(total)
+        .ok_or(ForkitError::ArithmeticOverflow)? as u64;
+
+    // delivery_fee = protocol_fee - food_fee  (takes up any rounding remainder)
+    let delivery_fee = order.protocol_fee
+        .checked_sub(food_fee)
         .ok_or(ForkitError::ArithmeticOverflow)?;
-    let driver_payout = order.delivery_amount.checked_sub(delivery_fee)
+
+    let restaurant_payout = order.food_amount
+        .checked_sub(food_fee)
         .ok_or(ForkitError::ArithmeticOverflow)?;
+    let driver_payout = order.delivery_amount
+        .checked_sub(delivery_fee)
+        .ok_or(ForkitError::ArithmeticOverflow)?;
+
+    // Sanity: total outflow == escrow_target (food + delivery)
+    // restaurant_payout + driver_payout + protocol_fee
+    //   = (food - food_fee) + (delivery - delivery_fee) + (food_fee + delivery_fee)
+    //   = food + delivery  ✓
 
     // Transfer to restaurant
     token::transfer(
@@ -133,13 +159,13 @@ pub fn handler(ctx: Context<ConfirmDelivery>, code_b: String) -> Result<()> {
         order.protocol_fee,
     )?;
 
-    // Compute loyalty points to award the customer (1% of total order value).
-    // The backend event listener calls earn_points on the loyalty program with this value.
-    let loyalty_points = (order.food_amount + order.delivery_amount)
-        .checked_mul(LOYALTY_POINTS_BPS)
+    // Loyalty points: 1% of total order value. Backend listens for this event
+    // and calls earn_points on the loyalty program with this value.
+    let loyalty_points = (order.food_amount as u128 + order.delivery_amount as u128)
+        .checked_mul(LOYALTY_POINTS_BPS as u128)
         .unwrap_or(0)
         .checked_div(10_000)
-        .unwrap_or(0);
+        .unwrap_or(0) as u64;
     let is_ai_order = order.ai_confidence > 0;
 
     order.status = OrderStatus::Settled;

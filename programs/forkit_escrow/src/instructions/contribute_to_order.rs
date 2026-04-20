@@ -61,12 +61,16 @@ pub fn handler(ctx: Context<ContributeToOrder>, amount: u64) -> Result<()> {
         ForkitError::InvalidOrderStatus
     );
 
-    // Check funding timeout
-    let clock = Clock::get()?;
-    require!(
-        clock.unix_timestamp <= order.created_at + FUNDING_TIMEOUT_SECONDS,
-        ForkitError::FundingExpired
-    );
+    // Funding timeout only applies to initial funding (Created status).
+    // Reimbursement contributions (Funded/Preparing/ReadyForPickup) are unconstrained
+    // by time — contributors reimburse the original payer after the fact.
+    if order.status == OrderStatus::Created {
+        let clock = Clock::get()?;
+        require!(
+            clock.unix_timestamp <= order.created_at + FUNDING_TIMEOUT_SECONDS,
+            ForkitError::FundingExpired
+        );
+    }
 
     // If not yet fully funded, cap at remaining. If already funded, accept
     // the full amount — it will be available as reimbursement to earlier contributors.

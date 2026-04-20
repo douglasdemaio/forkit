@@ -6,6 +6,7 @@ skip-lint = false
 forkit_escrow = "FNZXjjq2oceq15jVsnHT8gYJQUZ9NLCXCpYak2pXsqGB"
 forkit_registry = "2riHMdVB6eFgeQjqvnqq2Mrpqea7hrMv5ZNRh7gZgB9S"
 forkit_loyalty = "6DaFmi7haz2Ci9sXaHRviz3biwbmTwipvwc9L9cdeugR"
+forkit_token = "FRKTkNq5sGhCVr3QLUwMGaznMaCvGkzNFbPmHd6XbC4q"
 
 [registry]
 url = "https://api.apr.dev"

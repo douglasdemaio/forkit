@@ -4,11 +4,18 @@ import { useState, useEffect, useCallback } from 'react';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { PublicKey, Transaction, TransactionInstruction } from '@solana/web3.js';
 import { getAssociatedTokenAddress, TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import { ESCROW_PROGRAM_ID as ESCROW_PROGRAM_ID_STRING } from '@/lib/constants';
 
-const ESCROW_PROGRAM_ID = new PublicKey(
-  process.env.NEXT_PUBLIC_ESCROW_PROGRAM_ID || 'FNZXjjq2oceq15jVsnHT8gYJQUZ9NLCXCpYak2pXsqGB'
-);
+const ESCROW_PROGRAM_ID = new PublicKey(ESCROW_PROGRAM_ID_STRING);
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
+const MINT_SYMBOLS: Record<string, string> = {
+  'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v': 'USDC',
+  '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU': 'USDC (devnet)',
+  'HzwqbKZw8HxMN6bF2yFZNrht3c2iXXzpKcFu7uBEDKtr': 'EURC',
+  'CXk2AMBfi3TwaEL2468s6zP8xq9NxTXjp9gjMgzeUynM': 'EURC (devnet)',
+};
+const tokenSymbol = (mint: string) => MINT_SYMBOLS[mint] ?? mint.slice(0, 4) + '…';
 
 type Resolution = 'RefundCustomer' | 'PayRestaurantAndDriver' | 'Split';
 
@@ -203,13 +210,13 @@ export default function AdminDisputesPage() {
               </div>
               <div className="text-right text-sm">
                 <p className="text-gray-400">
-                  Food: <span className="text-white">{Number(order.foodTotal).toFixed(2)} USDC</span>
+                  Food: <span className="text-white">{Number(order.foodTotal).toFixed(2)} {tokenSymbol(order.tokenMint)}</span>
                 </p>
                 <p className="text-gray-400">
-                  Delivery: <span className="text-white">{Number(order.deliveryFee).toFixed(2)} USDC</span>
+                  Delivery: <span className="text-white">{Number(order.deliveryFee).toFixed(2)} {tokenSymbol(order.tokenMint)}</span>
                 </p>
                 <p className="text-gray-400">
-                  Deposit: <span className="text-white">{Number(order.depositAmount).toFixed(2)} USDC</span>
+                  Deposit: <span className="text-white">{Number(order.depositAmount).toFixed(2)} {tokenSymbol(order.tokenMint)}</span>
                 </p>
               </div>
             </div>
@@ -236,7 +243,7 @@ export default function AdminDisputesPage() {
                   {order.contributions.map((c, i) => (
                     <div key={i} className="flex justify-between text-xs">
                       <span className="font-mono text-gray-400 truncate mr-4">{c.walletAddress}</span>
-                      <span className="text-white whitespace-nowrap">{Number(c.amount).toFixed(2)} USDC</span>
+                      <span className="text-white whitespace-nowrap">{Number(c.amount).toFixed(2)} {tokenSymbol(order.tokenMint)}</span>
                     </div>
                   ))}
                 </div>

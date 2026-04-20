@@ -227,6 +227,56 @@ After deployment, update the program IDs in `Anchor.toml` and `.env`, then call 
 
 ---
 
+## Backend & Frontend (packages/)
+
+The `packages/` directory contains an Express API server (`packages/backend/`) and a React/Next.js frontend (`packages/frontend/`). These were restored and extended in PRs #42–#44.
+
+### Backend — Express API (`packages/backend/`)
+
+The server provides REST endpoints grouped by role. Authentication uses wallet-signed nonces; the `ADMIN_WALLET` environment variable gates admin routes.
+
+**Auth**
+- `POST /api/auth/nonce` — issue a nonce for wallet signing
+- `POST /api/auth/verify` — verify signed nonce, return session token (nonce Map is periodically pruned to prevent unbounded growth)
+
+**Customers**
+- `POST /api/customers/orders` — create an order; records `escrowTarget` and `escrowFunded` in Postgres
+
+**Drivers**
+- `GET /api/drivers/orders/available` — list orders with `Funded` status (not `Created`) available for pickup
+- `PUT /api/drivers/orders/:id/location` — push GPS coordinates; validates lat/lng ranges, confirms the driver is assigned to the order, and emits an `order:driver-location` Socket.IO event to the order's room
+
+**Restaurants**
+- `PUT /api/restaurants/profile` — update restaurant profile; field whitelist prevents arbitrary column injection
+
+**Contributions**
+- `POST /api/contributions/:orderId` — record a contribution; waits for on-chain tx confirmation before writing to Postgres
+
+**Admin — Disputes**
+- `GET /api/admin/disputes` — list all orders with `Disputed` status (requires `ADMIN_WALLET` match)
+- `PATCH /api/admin/disputes/:orderId/resolve` — mirror on-chain resolution to Postgres after admin signs `resolve_dispute` on-chain
+
+### Frontend — Admin Disputes (`packages/frontend/`)
+
+The `/admin/disputes` page lets admins review disputed orders. It shows the contributor breakdown with token-symbol-aware display (USDC, EURC, and devnet variants). Three resolution buttons — **Refund Customer**, **Pay Restaurant & Driver**, and **Split** — build and submit the `resolve_dispute` Anchor instruction on-chain, then call `PATCH /api/admin/disputes/:orderId/resolve` to sync the result to Postgres.
+
+### Constants (`packages/frontend/src/constants.ts`)
+
+Added exports: `ESCROW_PROGRAM_ID`, `REGISTRY_PROGRAM_ID`, `LOYALTY_PROGRAM_ID`, `DEVNET_USDC_MINT`, `DEVNET_EURC_MINT`.
+
+### Recent fixes
+
+| File | Fix |
+|---|---|
+| `useEscrow.ts` | PDA seeds now use an 8-byte little-endian `order_id` buffer (was string-encoded — produced wrong addresses) |
+| `drivers.ts` | Available-orders query filters on `Funded` status instead of `Created` |
+| `contributions.ts` | On-chain tx confirmed before recording the contribution in Postgres |
+| `auth.ts` | Nonce cleanup interval prevents the in-memory nonce Map from growing unboundedly |
+| `customers.ts` | `prisma.order.create` now includes `escrowTarget` and `escrowFunded` fields |
+| `restaurants.ts` | `PUT /profile` whitelists fields to prevent arbitrary column injection |
+
+---
+
 ## Related Repositories
 
 | Repo | Description |

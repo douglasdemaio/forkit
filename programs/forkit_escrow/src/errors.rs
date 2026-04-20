@@ -46,4 +46,14 @@ pub enum ForkitError {
     SurgeMultiplierTooHigh,
     #[msg("AI confidence score must be between 0 and 100")]
     InvalidAIConfidence,
+    #[msg("Driver has no registered profile or is not the Driver role")]
+    DriverNotRegistered,
+    #[msg("Driver profile is inactive")]
+    DriverNotActive,
+    #[msg("Driver trust score is below the minimum threshold")]
+    InsufficientTrustScore,
+    #[msg("No driver has been assigned to this order")]
+    DriverNotAssigned,
+    #[msg("A profile cannot rate itself")]
+    SelfRatingNotAllowed,
 }

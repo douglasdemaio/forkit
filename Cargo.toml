@@ -2,7 +2,8 @@
 members = [
     "programs/forkit_escrow",
     "programs/forkit_registry",
-    "programs/forkit_loyalty"
+    "programs/forkit_loyalty",
+    "programs/forkit_token"
 ]
 resolver = "2"
 

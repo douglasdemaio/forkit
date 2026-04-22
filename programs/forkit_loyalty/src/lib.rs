@@ -6,7 +6,7 @@ pub mod state;
 
 use instructions::*;
 
-declare_id!("6DaFmi7haz2Ci9sXaHRviz3biwbmTwipvwc9L9cdeugR");
+declare_id!("BnnUntqkUadZ2BsW8j675P9hJQV3aqVcmt4xG4xfeoM8");
 
 /// ForkIt Loyalty Program
 ///

@@ -6,7 +6,7 @@ pub mod state;
 
 use instructions::*;
 
-declare_id!("2riHMdVB6eFgeQjqvnqq2Mrpqea7hrMv5ZNRh7gZgB9S");
+declare_id!("EM1FgSzfS3F7cCYJWhUaqqPAK7ijZYpYRx7pzYkuyExz");
 
 #[program]
 pub mod forkit_registry {

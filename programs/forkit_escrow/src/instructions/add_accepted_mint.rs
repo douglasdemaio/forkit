@@ -1,4 +1,5 @@
 use anchor_lang::prelude::*;
+use anchor_spl::token_interface::Mint;
 use crate::state::*;
 use crate::errors::ForkitError;
 
@@ -11,7 +12,7 @@ pub struct AddAcceptedMint<'info> {
         has_one = admin @ ForkitError::Unauthorized,
     )]
     pub protocol_config: Account<'info, ProtocolConfig>,
-    pub mint: Account<'info, anchor_spl::token::Mint>,
+    pub mint: InterfaceAccount<'info, Mint>,
     pub admin: Signer<'info>,
 }
 

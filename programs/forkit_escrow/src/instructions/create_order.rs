@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token::{self, Token, TokenAccount, Transfer, Mint};
+use anchor_spl::token_interface::{self, TokenInterface, TokenAccount, TransferChecked, Mint};
 use crate::state::*;
 use crate::errors::ForkitError;
 
@@ -17,7 +17,7 @@ pub struct CreateOrder<'info> {
         seeds = [Order::SEED, &order_id.to_le_bytes()],
         bump,
     )]
-    pub order: Account<'info, Order>,
+    pub order: Box<Account<'info, Order>>,
 
     /// The creator's contribution record (may be 0 if they don't fund yet)
     #[account(
@@ -27,43 +27,44 @@ pub struct CreateOrder<'info> {
         seeds = [Contribution::SEED, &order_id.to_le_bytes(), customer.key().as_ref()],
         bump,
     )]
-    pub contribution: Account<'info, Contribution>,
+    pub contribution: Box<Account<'info, Contribution>>,
 
     #[account(
         seeds = [ProtocolConfig::SEED],
         bump = protocol_config.bump,
     )]
-    pub protocol_config: Account<'info, ProtocolConfig>,
+    pub protocol_config: Box<Account<'info, ProtocolConfig>>,
 
     /// CHECK: Validated by the caller; restaurant identity stored on the order
     pub restaurant: UncheckedAccount<'info>,
 
-    pub token_mint: Account<'info, Mint>,
+    pub token_mint: Box<InterfaceAccount<'info, Mint>>,
 
     #[account(
         init,
         payer = customer,
         token::mint = token_mint,
         token::authority = escrow_vault,
+        token::token_program = token_program,
         seeds = [ESCROW_VAULT_SEED, &order_id.to_le_bytes()],
         bump,
     )]
-    pub escrow_vault: Account<'info, TokenAccount>,
+    pub escrow_vault: Box<InterfaceAccount<'info, TokenAccount>>,
 
     #[account(
         mut,
         constraint = customer_token_account.owner == customer.key(),
         constraint = customer_token_account.mint == token_mint.key(),
     )]
-    pub customer_token_account: Account<'info, TokenAccount>,
+    pub customer_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
 
     #[account(mut)]
     pub customer: Signer<'info>,
 
     /// Optional surge config — if present and active, delivery_amount is scaled up.
-    pub surge_config: Option<Account<'info, SurgeConfig>>,
+    pub surge_config: Option<Box<Account<'info, SurgeConfig>>>,
 
-    pub token_program: Program<'info, Token>,
+    pub token_program: Interface<'info, TokenInterface>,
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
 }
@@ -155,16 +156,18 @@ pub fn handler(
         // Cap at escrow target
         let actual_contribution = initial_contribution.min(escrow_target);
 
-        token::transfer(
+        token_interface::transfer_checked(
             CpiContext::new(
                 ctx.accounts.token_program.to_account_info(),
-                Transfer {
+                TransferChecked {
                     from: ctx.accounts.customer_token_account.to_account_info(),
+                    mint: ctx.accounts.token_mint.to_account_info(),
                     to: ctx.accounts.escrow_vault.to_account_info(),
                     authority: ctx.accounts.customer.to_account_info(),
                 },
             ),
             actual_contribution,
+            ctx.accounts.token_mint.decimals,
         )?;
 
         contribution.amount = actual_contribution;

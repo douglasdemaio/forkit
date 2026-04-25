@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token::{self, Token, TokenAccount, Transfer};
+use anchor_spl::token_interface::{self, TokenInterface, TokenAccount, TransferChecked, Mint};
 use crate::state::*;
 use crate::errors::ForkitError;
 
@@ -24,7 +24,10 @@ pub struct ResolveDispute<'info> {
         seeds = [ESCROW_VAULT_SEED, &order.order_id.to_le_bytes()],
         bump,
     )]
-    pub escrow_vault: Account<'info, TokenAccount>,
+    pub escrow_vault: Box<InterfaceAccount<'info, TokenAccount>>,
+
+    #[account(constraint = token_mint.key() == order.token_mint @ ForkitError::UnsupportedMint)]
+    pub token_mint: Box<InterfaceAccount<'info, Mint>>,
 
     #[account(
         mut,
@@ -33,7 +36,7 @@ pub struct ResolveDispute<'info> {
         constraint = restaurant_token_account.mint == order.token_mint
             @ ForkitError::UnsupportedMint,
     )]
-    pub restaurant_token_account: Account<'info, TokenAccount>,
+    pub restaurant_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
 
     #[account(
         mut,
@@ -42,11 +45,11 @@ pub struct ResolveDispute<'info> {
         constraint = driver_token_account.mint == order.token_mint
             @ ForkitError::UnsupportedMint,
     )]
-    pub driver_token_account: Account<'info, TokenAccount>,
+    pub driver_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
 
     /// Arbiter (protocol admin for MVP)
     pub admin: Signer<'info>,
-    pub token_program: Program<'info, Token>,
+    pub token_program: Interface<'info, TokenInterface>,
 }
 
 /// Resolve a dispute. Three outcomes:
@@ -63,6 +66,7 @@ pub fn handler(ctx: Context<ResolveDispute>, resolution: DisputeResolution) -> R
 
     let order_id_bytes = order.order_id.to_le_bytes();
     let seeds = &[b"escrow_vault" as &[u8], &order_id_bytes, &[ctx.bumps.escrow_vault]];
+    let decimals = ctx.accounts.token_mint.decimals;
 
     match resolution {
         DisputeResolution::RefundCustomer => {
@@ -77,29 +81,33 @@ pub fn handler(ctx: Context<ResolveDispute>, resolution: DisputeResolution) -> R
             let restaurant_payout = order.food_amount;
             let driver_payout = order.delivery_amount;
 
-            token::transfer(
+            token_interface::transfer_checked(
                 CpiContext::new_with_signer(
                     ctx.accounts.token_program.to_account_info(),
-                    Transfer {
+                    TransferChecked {
                         from: ctx.accounts.escrow_vault.to_account_info(),
+                        mint: ctx.accounts.token_mint.to_account_info(),
                         to: ctx.accounts.restaurant_token_account.to_account_info(),
                         authority: ctx.accounts.escrow_vault.to_account_info(),
                     },
                     &[seeds],
                 ),
                 restaurant_payout,
+                decimals,
             )?;
-            token::transfer(
+            token_interface::transfer_checked(
                 CpiContext::new_with_signer(
                     ctx.accounts.token_program.to_account_info(),
-                    Transfer {
+                    TransferChecked {
                         from: ctx.accounts.escrow_vault.to_account_info(),
+                        mint: ctx.accounts.token_mint.to_account_info(),
                         to: ctx.accounts.driver_token_account.to_account_info(),
                         authority: ctx.accounts.escrow_vault.to_account_info(),
                     },
                     &[seeds],
                 ),
                 driver_payout,
+                decimals,
             )?;
             // Remaining excess stays for contributors to claim via refund_contributor
         }
@@ -123,29 +131,33 @@ pub fn handler(ctx: Context<ResolveDispute>, resolution: DisputeResolution) -> R
             // half >= restaurant_share always (food_amt <= total), so this is safe
             let driver_share = half - restaurant_share;
 
-            token::transfer(
+            token_interface::transfer_checked(
                 CpiContext::new_with_signer(
                     ctx.accounts.token_program.to_account_info(),
-                    Transfer {
+                    TransferChecked {
                         from: ctx.accounts.escrow_vault.to_account_info(),
+                        mint: ctx.accounts.token_mint.to_account_info(),
                         to: ctx.accounts.restaurant_token_account.to_account_info(),
                         authority: ctx.accounts.escrow_vault.to_account_info(),
                     },
                     &[seeds],
                 ),
                 restaurant_share,
+                decimals,
             )?;
-            token::transfer(
+            token_interface::transfer_checked(
                 CpiContext::new_with_signer(
                     ctx.accounts.token_program.to_account_info(),
-                    Transfer {
+                    TransferChecked {
                         from: ctx.accounts.escrow_vault.to_account_info(),
+                        mint: ctx.accounts.token_mint.to_account_info(),
                         to: ctx.accounts.driver_token_account.to_account_info(),
                         authority: ctx.accounts.escrow_vault.to_account_info(),
                     },
                     &[seeds],
                 ),
                 driver_share,
+                decimals,
             )?;
             // Other half stays for contributors to claim via refund_contributor
         }

@@ -72,6 +72,16 @@ pub mod forkit_escrow {
         instructions::accept_order::handler(ctx)
     }
 
+    /// Restaurant lowers an order's delivery_amount after accepting a driver
+    /// bid below the posted fee. Surplus stays in the escrow vault and is
+    /// refunded to the customer at confirm_delivery.
+    pub fn update_delivery_amount(
+        ctx: Context<UpdateDeliveryAmount>,
+        new_delivery_amount: u64,
+    ) -> Result<()> {
+        instructions::update_delivery_amount::handler(ctx, new_delivery_amount)
+    }
+
     pub fn cancel_order(ctx: Context<CancelOrder>) -> Result<()> {
         instructions::cancel_order::handler(ctx)
     }

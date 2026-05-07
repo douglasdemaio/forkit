@@ -61,6 +61,18 @@ pub struct ConfirmDelivery<'info> {
     )]
     pub treasury_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
 
+    /// Customer's token account — used to refund any escrow surplus when
+    /// `update_delivery_amount` lowered the delivery price below what was
+    /// originally funded. If no surplus, the transfer is skipped.
+    #[account(
+        mut,
+        constraint = customer_token_account.owner == order.customer
+            @ ForkitError::Unauthorized,
+        constraint = customer_token_account.mint == order.token_mint
+            @ ForkitError::UnsupportedMint,
+    )]
+    pub customer_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
+
     pub customer: Signer<'info>,
     pub token_program: Interface<'info, TokenInterface>,
 }
@@ -169,6 +181,37 @@ pub fn handler(ctx: Context<ConfirmDelivery>, code_b: String) -> Result<()> {
         order.protocol_fee,
         decimals,
     )?;
+
+    // Surplus refund to customer: when `update_delivery_amount` lowered the
+    // delivery price after funding, the vault now holds more than (food +
+    // delivery + protocol_fee). Send that excess back to the customer so
+    // they only pay the actual accepted bid amount.
+    let total_paid_out = order
+        .food_amount
+        .checked_add(order.delivery_amount)
+        .ok_or(ForkitError::ArithmeticOverflow)?
+        .checked_add(order.protocol_fee)
+        .ok_or(ForkitError::ArithmeticOverflow)?;
+    let surplus = order
+        .escrow_funded
+        .checked_sub(total_paid_out)
+        .ok_or(ForkitError::ArithmeticOverflow)?;
+    if surplus > 0 {
+        token_interface::transfer_checked(
+            CpiContext::new_with_signer(
+                ctx.accounts.token_program.to_account_info(),
+                TransferChecked {
+                    from: ctx.accounts.escrow_vault.to_account_info(),
+                    mint: ctx.accounts.token_mint.to_account_info(),
+                    to: ctx.accounts.customer_token_account.to_account_info(),
+                    authority: ctx.accounts.escrow_vault.to_account_info(),
+                },
+                &[seeds],
+            ),
+            surplus,
+            decimals,
+        )?;
+    }
 
     // Loyalty points: 1% of total order value. Backend listens for this event
     // and calls earn_points on the loyalty program with this value.

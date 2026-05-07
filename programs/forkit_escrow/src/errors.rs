@@ -56,4 +56,10 @@ pub enum ForkitError {
     DriverNotAssigned,
     #[msg("A profile cannot rate itself")]
     SelfRatingNotAllowed,
+    #[msg("A driver has already been assigned to this order")]
+    DriverAlreadyAssigned,
+    #[msg("New delivery amount must be greater than zero")]
+    InvalidDeliveryAmount,
+    #[msg("New delivery amount cannot exceed the current delivery amount")]
+    CannotIncreaseDelivery,
 }

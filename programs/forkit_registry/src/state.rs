@@ -79,7 +79,7 @@ impl Profile {
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq)]
 pub enum Role {
-    Restaurant,
+    Merchant,
     Driver,
     Customer,
 }

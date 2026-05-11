@@ -2,7 +2,7 @@
   "name": "forkit",
   "version": "0.1.0",
   "private": true,
-  "description": "ForkIt — Solana smart contract protocol for decentralized food delivery",
+  "description": "ForkIt — Solana smart contract protocol for local commerce (restaurants, home kitchens, retail) on-chain",
   "scripts": {
     "build": "anchor build",
     "test": "anchor test",

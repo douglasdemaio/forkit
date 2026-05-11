@@ -1,7 +1,7 @@
 [package]
 name = "forkit-escrow"
 version = "0.1.0"
-description = "ForkIt escrow program for decentralized food delivery"
+description = "ForkIt escrow program — on-chain local commerce settlement on Solana"
 edition = "2021"
 
 [lib]

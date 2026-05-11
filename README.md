@@ -1,8 +1,8 @@
 # 🍴 ForkIt
 
-**Solana smart contract protocol for decentralized food delivery.**
+**Solana smart contract protocol for local commerce — on-chain.**
 
-ForkIt replaces centralized delivery platforms with an open on-chain protocol where restaurants, drivers, and customers interact directly. Payments are held in escrow as SPL tokens (USDC, EURC), verified with delivery codes, and settled automatically - no middleman taking 30%.
+ForkIt replaces centralized delivery platforms with an open on-chain protocol where any local merchant — restaurants, home kitchens, bookshops, florists, hardware stores — transacts directly with drivers and customers. Payments are held in escrow as SPL tokens (USDC, EURC), verified with delivery codes, and settled automatically — no middleman taking 30%.
 
 ## Architecture
 
@@ -50,7 +50,7 @@ forkit/
 
 ### Scheduled Orders
 
-Customers can specify a **requested delivery time** and/or **requested pickup time** when placing an order. These are stored on-chain as Unix timestamps (0 = ASAP). Restaurants and drivers use these to plan preparation and routing. The timeout clock still applies from the order creation time to protect all parties.
+Customers can specify a **requested delivery time** and/or **requested pickup time** when placing an order. These are stored on-chain as Unix timestamps (0 = ASAP). Merchants and drivers use these to plan preparation and routing. The timeout clock still applies from the order creation time to protect all parties.
 
 ---
 
@@ -68,18 +68,18 @@ Created → Funded → Preparing → ReadyForPickup → PickedUp → Delivered �
    └── (funding timeout 15min) → Refunded
 ```
 
-1. **Created** - Customer places an order; funds (food + delivery fee) are locked in an escrow PDA. If the initial contribution doesn't cover the full amount, others can chip in.
-2. **Funded** - Escrow is fully funded. Ready for the restaurant. Friends can still contribute to reimburse the original payer.
-3. **Preparing** - Restaurant accepts the order via `accept_order`.
-4. **ReadyForPickup** - Restaurant marks food as ready.
+1. **Created** - Customer places an order; funds (goods + delivery fee) are locked in an escrow PDA. If the initial contribution doesn't cover the full amount, others can chip in.
+2. **Funded** - Escrow is fully funded. Ready for the merchant. Friends can still contribute to reimburse the original payer.
+3. **Preparing** - Merchant (restaurant, home cook, or shop) accepts the order via `accept_order`.
+4. **ReadyForPickup** - Merchant marks the order ready.
 5. **PickedUp** - Driver confirms pickup by submitting Code A (hash-verified on-chain).
 6. **Delivered** - Customer confirms delivery by submitting Code B. Settlement occurs atomically:
-   - Restaurant receives the food amount
+   - Merchant receives the goods amount
    - Driver receives the delivery fee
    - Treasury receives the 0.02% protocol fee
 7. **Settled** - All parties have claimed their funds. If the escrow was overfunded (friends contributed after funding), excess is returned proportionally to contributors.
 
-Timeouts at any stage trigger automatic refunds. Disputes can be opened after pickup and are resolved by admin arbitration (refund customer, pay restaurant+driver, or split).
+Timeouts at any stage trigger automatic refunds. Disputes can be opened after pickup and are resolved by admin arbitration (refund customer, pay merchant+driver, or split).
 
 > **Off-chain API alignment:** The `forkit-site` Next.js API and the `forkme` mobile app use these same status names exactly (PascalCase). Status transitions in the off-chain DB mirror on-chain state — see the forkit-site repository for the full API contract.
 
@@ -105,14 +105,14 @@ Core program managing the full order lifecycle, escrow vault, and fee distributi
 | `contribute_to_order` | Anyone | Add funds to an order (up to 10 contributors); accepted before and after funding for reimbursement |
 | `accept_order` | Driver | Claim a delivery |
 | `cancel_order` | Customer | Cancel within 60s window, triggers full refund |
-| `mark_ready_for_pickup` | Restaurant | Signal food is ready |
+| `mark_ready_for_pickup` | Merchant | Signal the order is ready |
 | `confirm_pickup` | Driver | Verify Code A hash - proves pickup |
 | `confirm_delivery` | Customer | Verify Code B hash - triggers settlement + fee distribution |
 | `claim_deposit` | Contributor | Claim proportional reimbursement of excess contributions after settlement |
 | `refund_contributor` | Anyone | Permissionless refund per contributor after cancel/timeout |
 | `timeout_refund` | Anyone | Auto-refund if prep/pickup/delivery times out |
 | `open_dispute` | Customer | Escalate after pickup |
-| `resolve_dispute` | Admin | Refund customer, pay restaurant+driver, or split |
+| `resolve_dispute` | Admin | Refund customer, pay merchant+driver, or split |
 
 #### Accounts
 
@@ -131,7 +131,7 @@ On-chain identity and reputation for all participants.
 
 | Instruction | Signer | Description |
 |---|---|---|
-| `register` | Anyone | Create a profile PDA (role: Restaurant, Driver, or Customer) |
+| `register` | Anyone | Create a profile PDA (role: Merchant, Driver, or Customer) |
 | `update_metadata` | Profile owner | Update profile metadata URI |
 | `update_payout_wallet` | Profile owner | Change the payout wallet address (emits auditable on-chain event) |
 | `rate_counterparty` | Post-order | Submit 1-5 star rating, recalculates trust score |
@@ -178,7 +178,7 @@ FORKIT SPL token creation, dynamic fee routing, batched minting, reserve managem
 |---|---|---|
 | Platform | `9iBQEn9yMbKVhJKEpMpPByS6pjydPmQDGaznMaCvGkzD` (hardcoded) | 0.005% USDC |
 | Customer | FORKIT minted to customer's ATA | 0.005% → FORKIT @ 1/\$0.01 rate |
-| Restaurant | Restaurant's USDC ATA | 0.005% USDC |
+| Merchant | Merchant's USDC ATA | 0.005% USDC |
 | Reserve | Program-owned USDC vault (→ basket) | 0.005% USDC |
 
 All four splits are validated to sum to exactly 0.02% before any transfer executes.
@@ -357,7 +357,7 @@ Account order: `order`, `escrow_vault`, `protocol_config`, `restaurant_token_acc
 | **EURC** | Devnet | `CXk2AMBfi3TwaEL2468s6zP8xq9NxTXjp9gjMgzeUynM` |
 | **EURC** | Mainnet | `HzwqbKZw8HxMN6bF2yFZNrht3c2iXXzpKcFu7uBEDKtr` |
 
-Restaurants can whitelist accepted mints via `add_accepted_mint`.
+Merchants can whitelist accepted mints via `add_accepted_mint`.
 
 ---
 

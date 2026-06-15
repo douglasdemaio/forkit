@@ -98,6 +98,14 @@ pub mod forkit_escrow {
         instructions::confirm_delivery::handler(ctx, code_b)
     }
 
+    /// Merchant-driven settlement — allows the restaurant owner to settle an
+    /// order on-chain without the customer signing. Skips code-B check and
+    /// surplus refund; excess stays in the vault for claim_deposit.
+    /// Status must be PickedUp or Delivered.
+    pub fn merchant_settle_order(ctx: Context<MerchantSettleOrder>) -> Result<()> {
+        instructions::merchant_settle_order::handler(ctx)
+    }
+
     /// After settlement, contributors claim proportional reimbursement of excess funds.
     pub fn claim_deposit(ctx: Context<ClaimDeposit>) -> Result<()> {
         instructions::claim_deposit::handler(ctx)

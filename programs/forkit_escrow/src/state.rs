@@ -288,6 +288,16 @@ pub struct DisputeResolved {
 }
 
 #[event]
+pub struct MerchantSettled {
+    pub order_id: u64,
+    pub timestamp: i64,
+    pub restaurant_payout: u64,
+    pub driver_payout: u64,
+    pub protocol_fee: u64,
+    pub is_ai_order: bool,
+}
+
+#[event]
 pub struct SurgeUpdated {
     pub multiplier_bps: u16,
     pub active: bool,

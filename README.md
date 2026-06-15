@@ -20,7 +20,8 @@ forkit/
 ├── programs/
 │   ├── forkit_escrow/      # Order lifecycle, escrow, payments, disputes, surge pricing
 │   ├── forkit_registry/    # User registration, ratings, reputation
-│   └── forkit_loyalty/     # Points earning & redemption (Bronze → Platinum)
+│   ├── forkit_loyalty/     # Points earning & redemption (Bronze → Platinum)
+│   └── forkit_token/       # FORKIT SPL token, reserve basket, governance
 ├── Anchor.toml             # Anchor workspace config
 ├── Cargo.toml              # Rust workspace
 └── package.json            # Test dependencies
@@ -354,8 +355,8 @@ Account order: `order`, `escrow_vault`, `protocol_config`, `restaurant_token_acc
 |---|---|---|
 | **USDC** | Devnet | `4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU` |
 | **USDC** | Mainnet | `EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v` |
-| **EURC** | Devnet | `CXk2AMBfi3TwaEL2468s6zP8xq9NxTXjp9gjMgzeUynM` |
-| **EURC** | Mainnet | `HzwqbKZw8HxMN6bF2yFZNrht3c2iXXzpKcFu7uBEDKtr` |
+| **PYUSD** | Devnet | `CXk2AMBfi3TwaEL2468s6zP8xq9NxTXjp9gjMgzeUynM` |
+| **EURC** | Mainnet | `HzwqbKZw8HxMN6bF2yFZNrht3c2iXXzpKcFu7uBEDKtr` (no devnet equivalent) |
 
 Merchants can whitelist accepted mints via `add_accepted_mint`.
 

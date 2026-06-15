@@ -76,7 +76,7 @@ router.post('/orders/:id/accept', authMiddleware, async (req: AuthRequest, res: 
     }
 
     const order = await prisma.order.update({
-      where: { id: req.params.id, status: 'Funded' },
+      where: { id: req.params.id as string, status: 'Funded' },
       data: { driverId: driver.id, status: 'Preparing' },
     });
 
@@ -116,7 +116,7 @@ router.put('/orders/:id/location', authMiddleware, async (req: AuthRequest, res:
     }
 
     const order = await prisma.order.findUnique({
-      where: { id: req.params.id },
+      where: { id: req.params.id as string },
     });
 
     if (!order) {
@@ -129,7 +129,7 @@ router.put('/orders/:id/location', authMiddleware, async (req: AuthRequest, res:
       return;
     }
 
-    emitDriverLocation(req.params.id, lat, lng);
+    emitDriverLocation(req.params.id as string, lat, lng);
 
     res.json({ ok: true });
   } catch {

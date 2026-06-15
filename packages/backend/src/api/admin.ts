@@ -40,9 +40,10 @@ router.patch('/disputes/:orderId/resolve', authMiddleware, adminOnly, async (req
       return;
     }
     const order = await prisma.order.update({
-      where: { id: req.params.orderId, status: 'Disputed' },
+      where: { id: req.params.orderId as string, status: 'Disputed' },
       data: { status: 'Refunded' },
     });
+
     res.json({ order, resolution, txSignature });
   } catch {
     res.status(400).json({ error: 'Failed to resolve dispute' });

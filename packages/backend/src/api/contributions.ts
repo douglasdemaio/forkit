@@ -14,7 +14,7 @@ const prisma = new PrismaClient();
 router.get('/order/:orderId', async (req: Request, res: Response) => {
   try {
     const order = await prisma.order.findUnique({
-      where: { id: req.params.orderId },
+      where: { id: req.params.orderId as string },
       include: {
         contributions: {
           orderBy: { createdAt: 'asc' },
@@ -53,7 +53,7 @@ router.get('/order/:orderId', async (req: Request, res: Response) => {
 router.get('/share/:shareLink', async (req: Request, res: Response) => {
   try {
     const order = await prisma.order.findUnique({
-      where: { shareLink: req.params.shareLink },
+      where: { shareLink: req.params.shareLink as string },
       include: {
         restaurant: { select: { name: true } },
         contributions: {
@@ -154,7 +154,7 @@ router.post('/', async (req: Request, res: Response) => {
 router.post('/generate-link/:orderId', async (req: Request, res: Response) => {
   try {
     const order = await prisma.order.findUnique({
-      where: { id: req.params.orderId },
+      where: { id: req.params.orderId as string },
     });
 
     if (!order) {
@@ -167,7 +167,7 @@ router.post('/generate-link/:orderId', async (req: Request, res: Response) => {
 
     const shareLink = crypto.randomBytes(16).toString('hex');
     await prisma.order.update({
-      where: { id: req.params.orderId },
+      where: { id: req.params.orderId as string },
       data: { shareLink },
     });
 

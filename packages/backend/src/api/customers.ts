@@ -137,7 +137,7 @@ router.post('/orders', authMiddleware, async (req: AuthRequest, res: Response) =
 router.post('/orders/:id/cancel', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
     const order = await prisma.order.update({
-      where: { id: req.params.id, status: 'Created' },
+      where: { id: req.params.id as string, status: 'Created' },
       data: { status: 'Cancelled' },
     });
     res.json(order);
